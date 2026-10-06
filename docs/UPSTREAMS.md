@@ -118,13 +118,13 @@ and then applies the same harness target.
 ## Bootstrap safety model
 
 ```bash
-./scripts/bootstrap.sh all
+bash scripts/bootstrap.sh all
 ```
 
 is inspect/check only.
 
 ```bash
-./scripts/bootstrap.sh --install all
+bash scripts/bootstrap.sh --install all
 ```
 
 is intentionally rejected.
@@ -142,7 +142,7 @@ Update one component at a time:
 3. run bootstrap in check mode;
 4. run dry-run-capable installers;
 5. inspect project diffs;
-6. run `./scripts/verify-template.sh`;
+6. run `bash scripts/verify-template.sh`;
 7. let CI run Codex doctor.
 
 Do not convert reviewed pins back to mutable `main`/latest references without an explicit reason.
