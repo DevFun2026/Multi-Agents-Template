@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 python3 scripts/validate_template.py
+python3 scripts/test-validator-mutations.py
 
 bash -n scripts/bootstrap.sh
 bash -n scripts/verify-template.sh
