@@ -25,7 +25,7 @@ jobs:
           npm install -g @openai/codex@0.160.1
 
       - name: Validate template structure
-        run: ./scripts/verify-template.sh
+        run: bash scripts/verify-template.sh
 
       - name: Validate Codex project config with doctor
         shell: bash
