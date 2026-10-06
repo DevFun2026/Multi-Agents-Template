@@ -4,7 +4,7 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 web_search = "live"
 
-developer_instructions = "MULTI_AGENTS_TEMPLATE_CODEX_PROJECT_CONFIG_ACTIVE. Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. For every child spawn use fork_turns = \"none\" (or a deliberately small integer) before setting a cheaper model and reasoning effort. Parallelize read-only work; serialize workspace-writing implementers unless they are assigned separate worktrees."
+developer_instructions = "MATCFG. Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. For every child spawn use fork_turns = \"none\" (or a deliberately small integer) before setting a cheaper model and reasoning effort. Parallelize read-only work; serialize workspace-writing implementers unless they are assigned separate worktrees."
 
 [features]
 multi_agent = true
@@ -33,10 +33,10 @@ config_file = "agents/implementer.toml"
 description = "Read-only reviewer focused on correctness, regressions, maintainability, and missing tests."
 config_file = "agents/reviewer.toml"
 
-[agents.security_reviewer]
+[agents.security-reviewer]
 description = "Read-only security reviewer focused on trust boundaries, secrets, auth, input, dependencies, and permissions."
 config_file = "agents/security-reviewer.toml"
 
-[agents.uiux_reviewer]
+[agents.uiux-reviewer]
 description = "Read-only UI/UX reviewer focused on design-system consistency, accessibility, responsiveness, and interaction."
 config_file = "agents/uiux-reviewer.toml"
