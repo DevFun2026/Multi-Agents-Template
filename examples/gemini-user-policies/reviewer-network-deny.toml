@@ -1,11 +1,13 @@
 # Copy this file to ~/.gemini/policies/reviewer-network-deny.toml
 # for Gemini CLI 0.62.0. Workspace .gemini/policies are currently non-functional.
 #
-# This is a narrow guardrail for common fetch commands, not a complete
-# network sandbox: other programs can still open sockets.
+# This is a narrow guardrail for common curl/wget forms, not a complete
+# network sandbox. It additionally catches common absolute-path, env, and
+# VAR=value prefixes. Other programs (python, node, nc, ssh, etc.) can still
+# open sockets; use Gemini --sandbox for a stronger execution boundary.
 
 [[rule]]
-name = "Deny reviewer curl/wget"
+name = "Deny reviewer curl/wget prefixes"
 subagent = "reviewer"
 toolName = "run_shell_command"
 commandPrefix = ["curl", "wget"]
@@ -13,7 +15,15 @@ decision = "deny"
 priority = 900
 
 [[rule]]
-name = "Deny security reviewer curl/wget"
+name = "Deny reviewer wrapped curl/wget"
+subagent = "reviewer"
+toolName = "run_shell_command"
+commandRegex = '(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny security reviewer curl/wget prefixes"
 subagent = "security-reviewer"
 toolName = "run_shell_command"
 commandPrefix = ["curl", "wget"]
@@ -21,9 +31,25 @@ decision = "deny"
 priority = 900
 
 [[rule]]
-name = "Deny UIUX reviewer curl/wget"
+name = "Deny security reviewer wrapped curl/wget"
+subagent = "security-reviewer"
+toolName = "run_shell_command"
+commandRegex = '(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny UIUX reviewer curl/wget prefixes"
 subagent = "uiux-reviewer"
 toolName = "run_shell_command"
 commandPrefix = ["curl", "wget"]
 decision = "deny"
 priority = 900
+
+[[rule]]
+name = "Deny UIUX reviewer wrapped curl/wget"
+subagent = "uiux-reviewer"
+toolName = "run_shell_command"
+commandRegex = '(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)'
+decision = "deny"
+priority = 901
