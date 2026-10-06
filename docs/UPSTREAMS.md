@@ -107,13 +107,13 @@ Bootstrap pins:
 npm install -g ui-ux-pro-max-cli@2.15.0
 ```
 
-Before writing project files it previews:
+`ui-ux-pro-max-cli 2.15.0` does **not** provide a `--dry-run` option. Bootstrap therefore applies the pinned initializer directly:
 
 ```bash
-uipro init --ai <codex|claude|gemini> --dry-run
+uipro init --ai <codex|claude|gemini>
 ```
 
-and then applies the same harness target.
+If you need a preview, run the pinned initializer manually inside a disposable temporary project and inspect its generated files before applying it to the real project.
 
 ## Bootstrap safety model
 
@@ -140,9 +140,17 @@ Update one component at a time:
 1. review upstream release/source;
 2. update the pin;
 3. run bootstrap in check mode;
-4. run dry-run-capable installers;
+4. run dry-run-capable installers only where the upstream CLI actually supports dry-run;
 5. inspect project diffs;
 6. run `bash scripts/verify-template.sh`;
 7. let CI run Codex doctor.
 
 Do not convert reviewed pins back to mutable `main`/latest references without an explicit reason.
+
+## Existing Codex ECC marketplace
+
+If an older template previously registered `affaan-m/ECC` from a different source/ref, Codex can reject the pinned `marketplace add --ref` with "already added from a different source". Bootstrap detects that case, leaves the existing marketplace untouched, skips the ECC plugin add, and continues instead of aborting. Remove/update the old marketplace explicitly, then rerun the pinned install.
+
+## Gemini idempotence
+
+`gemini extensions list` can emit its listing on stderr. Bootstrap captures both stdout and stderr before checking for Superpowers, so a second `--install gemini` does not attempt to reinstall an already-installed extension.
