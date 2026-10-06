@@ -89,9 +89,9 @@ The template deliberately separates dedicated local/web tools:
 | security reviewer | yes | no | yes |
 | UI/UX reviewer | yes | no | yes |
 
-Claude project permissions deny common `curl`/`wget` Bash commands, but this is a guardrail rather than proof of total network isolation.
+Claude project permissions deny common `curl`/`wget` Bash commands, but this is a guardrail rather than proof of total network isolation. For an actual Bash execution boundary, use Claude Code's sandbox with explicit network restrictions/allowlists and do not allow unsandboxed Bash commands.
 
-Gemini CLI 0.62.0 supports subagent-specific policy rules, but its **workspace policy tier is currently non-functional**. The repository therefore ships a user-policy example at `examples/gemini-user-policies/reviewer-network-deny.toml`; copy it to `~/.gemini/policies/` to apply it. It blocks common `curl`/`wget` prefixes for reviewers but is not a full socket sandbox.
+Gemini CLI 0.62.0 supports subagent-specific policy rules, but its **workspace policy tier is currently non-functional**. The repository therefore ships a user-policy example at `examples/gemini-user-policies/reviewer-network-deny.toml`; copy it to `~/.gemini/policies/` to apply it. It blocks direct/common wrapped `curl`/`wget` forms (including common absolute-path, `env`, and `VAR=value` prefixes) for reviewers, but it is not a full socket sandbox. Use `gemini --sandbox` when you need a stronger execution boundary.
 
 Codex non-research roles explicitly set `web_search = "disabled"`. The Codex external researcher has live search and an instruction not to inspect local files, but current role TOML does not provide a hard local-read capability split comparable to Claude/Gemini tool lists.
 
@@ -119,3 +119,16 @@ Start from project root and confirm project agents are listed/usable. Recursion 
 ```
 
 The second command is useful after editing agent definitions during a running session.
+
+## Custom agent contract
+
+These invariants apply to every agent file, including user-added roles:
+
+1. `name` must equal the filename stem.
+2. Claude/Gemini `tools` must be explicit; omission is rejected because the harness may inherit the parent/all tools.
+3. Claude/Gemini roles may not combine local/shell-capable tools and dedicated web tools in the same role.
+4. Gemini frontmatter remains strict and every tool name must pass the CLI-compatible tool-name validator.
+5. Every `.codex/agents/*.toml` file must explicitly declare `name`, `description`, `developer_instructions`, and `web_search`.
+6. A Codex role referenced from `.codex/config.toml` must use the same role name as its file.
+
+Codex can explicitly enable live web search on a custom role, but unlike Claude/Gemini tool lists, current Codex role configuration does not give this template a hard capability split that forbids local reads in that same role.
