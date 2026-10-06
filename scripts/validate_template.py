@@ -64,6 +64,15 @@ REQUIRED = [
     "examples/gemini-user-policies/reviewer-network-deny.toml",
 ]
 
+CODEX_EXPECTED_WEB_SEARCH = {
+    "explorer": "disabled",
+    "researcher": "live",
+    "implementer": "disabled",
+    "reviewer": "disabled",
+    "security-reviewer": "disabled",
+    "uiux-reviewer": "disabled",
+}
+
 CLAUDE_LOCAL_CAPABLE_TOOLS = {"Read", "Grep", "Glob", "Write", "Edit", "Bash"}
 CLAUDE_WEB_TOOLS = {"WebSearch", "WebFetch"}
 
@@ -415,17 +424,13 @@ for path in sorted((ROOT / ".codex/agents").glob("*.toml")):
     if "web_search" not in role:
         fail(f"{rel}: web_search must be declared explicitly")
 
-codex_researcher = parse_toml(".codex/agents/researcher.toml")
-if codex_researcher.get("web_search") != "live":
-    fail(".codex/agents/researcher.toml: external researcher must explicitly set web_search = \"live\"")
-
-for path in sorted((ROOT / ".codex/agents").glob("*.toml")):
-    if path.name == "researcher.toml":
-        continue
-    rel = str(path.relative_to(ROOT))
+for name, expected_web_search in CODEX_EXPECTED_WEB_SEARCH.items():
+    rel = f".codex/agents/{name}.toml"
     role = parse_toml(rel)
-    if role.get("web_search") != "disabled":
-        fail(f"{rel}: template local role must set web_search = \"disabled\"")
+    if role.get("web_search") != expected_web_search:
+        fail(
+            f"{rel}: default role web_search must be {expected_web_search!r}"
+        )
 
 agents_policy = read_text("AGENTS.md")
 codex_prompt = read_text("prompts/codex-session-start.md")
