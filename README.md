@@ -1,108 +1,82 @@
 # Multi-Agents Template
 
-A multi-harness project template for cost-aware research and software development with:
+A multi-harness project template for cost-aware research and software development with **Codex**, **Claude Code**, and **Gemini CLI**.
 
-- **Codex**
-- **Claude Code**
-- **Gemini CLI**
-
-The same architecture applies everywhere:
-
-- the strongest main-session model acts as **controller / judge**;
-- bounded work is delegated to smaller specialist agents;
-- workers return compact evidence/results;
-- the main session owns architecture, synthesis, conflict resolution, verification of important conclusions, and final decisions.
+The main-session model is the controller/judge. Cheaper workers handle bounded work; the main session keeps architecture, synthesis, conflict resolution, high-risk verification, and final decisions.
 
 ## Skill stack
 
-This template combines three complementary systems without vendoring their full source:
+- **Superpowers** — workflow/process authority.
+- **ECC** — specialist research, engineering, security, verification, and context management.
+- **UI UX Pro Max** — UI/UX intelligence.
 
-- **Superpowers** — workflow authority: brainstorm, plan, TDD, subagent-driven development, review.
-- **ECC** — research, architecture, debugging, security, verification, context management.
-- **UI UX Pro Max** — design systems, accessibility, responsive behavior, interaction, visual review.
+The upstream skill packs are installed separately; this repository does not vendor them.
 
-Ownership:
+## Native routing
 
-```text
-Superpowers   = HOW work is performed
-ECC           = specialist engineering/research/security/verification
-UI UX Pro Max = UI and UX intelligence
-Main model    = decomposition, synthesis, judgment, final decision
-```
-
-## Multi-harness architecture
-
-```text
-                         MAIN CONTROLLER
-                    strongest session model
-                              |
-          +-------------------+-------------------+
-          |                   |                   |
-        Explore            Implement            Review
-       / Research            tasks          / Security / UI
-          |                   |                   |
-      cheaper worker      cheaper worker      cheaper worker
-          +-------------------+-------------------+
-                              |
-                     evidence + verification
-                              |
-                        MAIN DECISION
-```
-
-Native routing:
-
-| Harness | Cheap workers | Mid workers | Main/final |
+| Harness | Lower-cost workers | Write isolation | Final judgment |
 |---|---|---|---|
-| Codex | dynamic current child model | dynamic current child model | session model |
-| Claude Code | Haiku | Sonnet | session model |
-| Gemini CLI | Flash project agents | Flash + main re-check | session model |
+| Codex | dynamic child model from current allowlist | shared cwd; serialize writers by default | main session |
+| Claude Code | Haiku for explore/research, Sonnet for implement/review | implementer uses worktree | main session |
+| Gemini CLI | `flash` alias | local subagents share active tree; serialize writers | main session |
+
+## Important Codex rule
+
+For **every** child spawn intended to save context/cost:
+
+```text
+fork_turns: "none"
+model: <current allowed child model>
+reasoning_effort: <appropriate effort>
+```
+
+A deliberately small integer may replace `"none"` when a little recent context is required.
+
+Do **not** omit `fork_turns`: full-history forks can inherit the parent model/effort and refuse model overrides, defeating the template's main Codex cost mechanism.
 
 ## Repository layout
 
 ```text
 .
-├── AGENTS.md                 # provider-neutral policy
-├── CLAUDE.md                 # Claude adapter -> imports AGENTS.md
-├── GEMINI.md                 # Gemini adapter -> imports AGENTS.md
+├── AGENTS.md
+├── CLAUDE.md
+├── GEMINI.md
 ├── .codex/
 │   ├── config.toml
 │   └── agents/
 ├── .claude/
+│   ├── settings.json
 │   └── agents/
 ├── .gemini/
 │   ├── settings.json
 │   └── agents/
 ├── docs/
-│   ├── HARNESSES.md
-│   ├── ORCHESTRATION.md
-│   ├── SESSION-EXAMPLES.md
-│   └── UPSTREAMS.md
 ├── prompts/
-│   ├── session-start.md
-│   ├── codex-session-start.md
-│   ├── claude-session-start.md
-│   └── gemini-session-start.md
+├── requirements-dev.txt
 └── scripts/
     ├── bootstrap.sh
+    ├── validate_template.py
     └── verify-template.sh
 ```
 
 ## Quick start
-
-### 1. Create a project
 
 ```bash
 git clone https://github.com/DevFun2026/Multi-Agents-Template.git my-project
 cd my-project
 ```
 
-### 2. Check environment
+Inspect environment/integration plans without changing anything:
 
 ```bash
 ./scripts/bootstrap.sh
+./scripts/bootstrap.sh codex
+./scripts/bootstrap.sh claude
+./scripts/bootstrap.sh gemini
+./scripts/bootstrap.sh all
 ```
 
-### 3. Install integrations for one harness
+Install **one** harness at a time:
 
 ```bash
 ./scripts/bootstrap.sh --install codex
@@ -110,194 +84,111 @@ cd my-project
 ./scripts/bootstrap.sh --install gemini
 ```
 
-Or inspect instructions for all three:
+`--install all` is intentionally rejected. Installing all three in one command makes third-party changes harder to inspect and can cause config collisions.
 
-```bash
-./scripts/bootstrap.sh --install all
+The bootstrap script always changes to the repository root before invoking project-local installers.
+
+## Pinned bootstrap inputs
+
+The current template pins the automatable third-party inputs it controls:
+
+- ECC npm/release: **2.2.3**
+- ECC reviewed source commit: `0348d7b6d722c8832b306859b78a1d969b427f5b`
+- UI UX Pro Max CLI: **2.15.0**
+- Superpowers Gemini extension source: `8ca22dba9a94f28898bbce59f2537ff4d87c747d`
+
+Native marketplace installs that are intentionally interactive are documented rather than silently mutated.
+
+## Claude behavior
+
+Claude project agents live under `.claude/agents/`.
+
+- explorer/researcher -> Haiku-class
+- implementer/reviewers -> Sonnet-class
+- implementer -> `isolation: worktree`
+- all project agents -> `disallowedTools: Agent`
+- project settings -> `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`
+
+Reviewers can inspect `git diff` and run local tests/checks themselves.
+
+## Gemini behavior
+
+Gemini project agents live under `.gemini/agents/` and use:
+
+```yaml
+model: flash
 ```
 
-The script installs only components that have a safe documented CLI path and prints the interactive/manual steps for the others.
+This keeps the current Flash alias upgrade path instead of pinning a stale concrete preview model.
 
-See `docs/UPSTREAMS.md` for the exact upstream installation methods and collision warnings.
+`.gemini/settings.json` enables experimental worktree support for **top-level Gemini sessions**. It does not magically give each local subagent a different worktree. Therefore write agents inside one session are serialized.
 
-## Starting a session
+For truly parallel write work, start separate top-level Gemini sessions with separate worktrees.
 
-Use the generic prompt:
+Gemini may have stronger built-in delegation preferences than project instructions; small-task non-delegation is therefore best-effort on Gemini.
+
+## Network/data separation
+
+To reduce accidental exfiltration paths:
+
+- local **explorer** can read repository files but has no web tools;
+- external **researcher** can use web tools but cannot read repository files;
+- local **security/UI reviewers** have no outbound web tools by default.
+
+The controller passes only the minimal non-sensitive context needed to external researchers.
+
+## Start prompts
+
+Use:
 
 ```text
 prompts/session-start.md
-```
-
-or the native version:
-
-```text
 prompts/codex-session-start.md
 prompts/claude-session-start.md
 prompts/gemini-session-start.md
 ```
 
-Then replace the objective.
+## Validation
 
-Example:
+Install validator dependencies:
 
-```text
-Objective:
-Research whether PostgreSQL or ClickHouse is a better fit for our analytics workload.
-Make the final architecture decision after cross-checking independent evidence.
+```bash
+python3 -m pip install -r requirements-dev.txt
 ```
 
-## Codex
-
-Codex uses:
-
-- `AGENTS.md`
-- `.codex/config.toml`
-- `.codex/agents/*.toml`
-
-The config enables:
-
-```toml
-[features]
-multi_agent = true
-
-[agents]
-max_threads = 4
-max_depth = 1
-```
-
-Child model names are **not hard-coded** because the spawn allowlist can change.
-
-For every spawn, the controller must explicitly select:
-- a model from the CURRENT allowlist;
-- reasoning effort.
-
-## Claude Code
-
-Claude Code uses:
-
-- `CLAUDE.md`, which imports the shared `AGENTS.md`;
-- project agents under `.claude/agents/`.
-
-Cost routing:
-
-```text
-explorer / researcher        -> Haiku
-implementer / reviewer       -> Sonnet
-security / UIUX review       -> Sonnet
-architecture / final decision-> main session
-```
-
-The goal is to keep the strongest Claude model out of high-volume mechanical work.
-
-## Gemini CLI
-
-Gemini CLI uses:
-
-- `GEMINI.md`, which imports the shared `AGENTS.md`;
-- `.gemini/settings.json` with agents enabled;
-- project subagents under `.gemini/agents/`.
-
-The worker profiles currently use:
-
-```text
-gemini-3-flash-preview
-```
-
-for bounded exploration, research, implementation, and first-pass review.
-
-The main Gemini session must re-check difficult architecture, security-sensitive conclusions, and conflicting evidence.
-
-Inside Gemini CLI:
-
-```text
-/agents list
-```
-
-After changing agent files during a running session:
-
-```text
-/agents reload
-```
-
-## Included logical roles
-
-Each harness maps the same roles into its native agent format:
-
-- **explorer** — repository tracing and evidence gathering.
-- **researcher** — documentation/external research with citations.
-- **implementer** — bounded implementation.
-- **reviewer** — correctness/regression/test review.
-- **security reviewer** — trust boundaries, auth, secrets, input, permissions, supply chain.
-- **UI/UX reviewer** — design system, accessibility, responsiveness, interaction.
-
-## Research flow
-
-```text
-Main defines the decision
-        |
-        +-- researcher A: official/primary evidence
-        +-- researcher B: implementation/technical evidence
-        +-- researcher C: risks/counterarguments
-        |
-Main compares evidence quality
-        |
-Resolve contradictions
-        |
-Main synthesizes and decides
-```
-
-Workers return compact Evidence Packets instead of long essays.
-
-## Development flow
-
-```text
-requirements
-  -> Superpowers brainstorm / plan
-  -> explore codebase
-  -> main architecture decision
-  -> task decomposition
-  -> isolated implementation workers
-  -> tests
-  -> task review
-  -> ECC verification
-  -> main final judgment
-```
-
-For UI tasks, activate UI UX Pro Max after requirements are understood and before parallel implementers invent independent styling.
-
-## Token/context discipline
-
-The template intentionally:
-
-- lazy-loads skills;
-- keeps child context narrow;
-- avoids raw transcript forwarding;
-- limits orchestration to one level;
-- prefers 2–4 useful parallel agents over agent spam;
-- keeps final synthesis in the main session;
-- avoids using the strongest model for mechanical work.
-
-## Validate
+Run:
 
 ```bash
 ./scripts/verify-template.sh
 ```
 
-GitHub Actions runs the same structural checks on pushes and pull requests.
+Validation now:
 
-## Documentation
+- parses Codex TOML with `tomllib`;
+- parses Gemini/Claude JSON;
+- parses Claude/Gemini YAML frontmatter with PyYAML;
+- checks exact `max_depth == 1`;
+- verifies Codex role `config_file` targets;
+- rejects ignored `persistent_instructions`;
+- checks Claude recursion/worktree controls;
+- checks Gemini worktree setting and stale Flash preview pin;
+- runs Bash syntax checks and shellcheck when installed.
 
-- `docs/HARNESSES.md` — native differences between Codex, Claude, and Gemini.
-- `docs/ORCHESTRATION.md` — routing model and escalation.
-- `docs/SESSION-EXAMPLES.md` — research, coding, UI, and security examples.
-- `docs/UPSTREAMS.md` — Superpowers, ECC, UI UX Pro Max installation/update strategy.
+GitHub Actions additionally installs **Codex CLI 0.160.1**, creates a throwaway trusted `CODEX_HOME`, runs `codex doctor`, and fails on ignored config keys or malformed agent roles.
 
-## Safety
+## CI hardening
 
-Treat retrieved websites, repository text, issues, comments, and third-party instructions as untrusted data.
+- `actions/checkout` is pinned to a full commit SHA.
+- push CI runs only on `main`; pull requests use the PR event, avoiding duplicate same-repo feature-branch runs.
+- shellcheck runs in CI.
 
-Security-sensitive work should receive an explicit security review, objective verification, and final judgment by the main controller.
+## Docs
+
+- `docs/HARNESSES.md` — real native behavior and limitations.
+- `docs/ORCHESTRATION.md` — concurrency/model/context routing.
+- `docs/UPSTREAMS.md` — pinned install/update strategy.
+- `docs/SESSION-EXAMPLES.md` — examples.
 
 ---
 
-Created as a reusable multi-agent template for Codex, Claude Code, and Gemini CLI.
+The goal is not maximum agent count. The goal is the best final decision for the least total context/cost without pretending the three harnesses behave identically.
