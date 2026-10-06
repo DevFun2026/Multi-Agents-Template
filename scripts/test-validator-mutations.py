@@ -212,6 +212,14 @@ config_file = "agents/docs.toml"
             ),
         ),
     ),
+
+    (
+        "text files require final newline",
+        lambda root: (root / "AGENTS.md").write_text(
+            (root / "AGENTS.md").read_text(encoding="utf-8").rstrip("\n"),
+            encoding="utf-8",
+        ),
+    ),
 ]
 
 
