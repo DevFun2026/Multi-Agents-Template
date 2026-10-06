@@ -40,10 +40,12 @@ Routing:
 Isolation/backstops:
 
 - implementer has `isolation: worktree`;
+- project setting `worktree.baseRef = "head"` branches from the current committed HEAD instead of the remote default branch;
+- uncommitted parent-checkout changes are not copied into the worktree;
 - `.claude/settings.json` sets `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`;
 - every project agent disallows `Agent`.
 
-Reviewer has Bash so it can inspect the real diff and run local tests/checks rather than trusting a pasted summary.
+The implementer must report its worktree path and base/head refs. Reviewer has Bash and should inspect that worktree directly with `git -C <worktree> ...`; a reviewer launched from the main checkout should not assume the implementation is visible there.
 
 Claude model validation intentionally accepts any non-empty model string; the template does not reject valid newer aliases/full model IDs.
 
@@ -77,17 +79,21 @@ Gemini's built-in system behavior may prefer delegation more aggressively than t
 
 ## Network/data separation
 
-The template deliberately separates local and external evidence:
+The template deliberately separates dedicated local/web tools:
 
-| Role | Local repo read | Outbound web |
-|---|---:|---:|
-| explorer | yes | no |
-| external researcher | no | yes |
-| reviewer | yes | no |
-| security reviewer | yes | no |
-| UI/UX reviewer | yes | no |
+| Role | Local repo tools | Dedicated web tools | Shell may still open network |
+|---|---:|---:|---:|
+| explorer | yes | no | no shell in Claude/Gemini explorer |
+| external researcher | no in Claude/Gemini | yes | no shell |
+| reviewer | yes | no | yes |
+| security reviewer | yes | no | yes |
+| UI/UX reviewer | yes | no | yes |
 
-This reduces the chance that untrusted repository content can directly drive an outbound request containing local data.
+Claude project permissions deny common `curl`/`wget` Bash commands, but this is a guardrail rather than proof of total network isolation.
+
+Gemini CLI 0.62.0 supports subagent-specific policy rules, but its **workspace policy tier is currently non-functional**. The repository therefore ships a user-policy example at `examples/gemini-user-policies/reviewer-network-deny.toml`; copy it to `~/.gemini/policies/` to apply it. It blocks common `curl`/`wget` prefixes for reviewers but is not a full socket sandbox.
+
+Codex non-research roles explicitly set `web_search = "disabled"`. The Codex external researcher has live search and an instruction not to inspect local files, but current role TOML does not provide a hard local-read capability split comparable to Claude/Gemini tool lists.
 
 ## Discovery checks
 
@@ -99,7 +105,7 @@ Run from project root and use:
 codex doctor
 ```
 
-CI tests this with a throwaway trusted `CODEX_HOME`.
+CI tests this with a throwaway trusted `CODEX_HOME` and also requires `codex debug prompt-input` to expose a unique project-config marker, so a trust/path mistake cannot silently pass.
 
 ### Claude Code
 
