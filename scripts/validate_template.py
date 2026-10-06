@@ -26,6 +26,9 @@ ROOT = Path(__file__).resolve().parent.parent
 REQUIRED = [
     "README.md",
     "AGENTS.md",
+    ".editorconfig",
+    ".gitignore",
+    ".github/workflows/template-check.yml",
     "CLAUDE.md",
     "GEMINI.md",
     ".codex/config.toml",
@@ -567,6 +570,25 @@ else:
         fail("Gemini reviewer user-policy example must deny curl/wget prefixes for all reviewer roles")
     if not expected_subagents.issubset(regex_subagents):
         fail("Gemini reviewer user-policy example must include wrapped curl/wget regex rules for all reviewer roles")
+
+template_text_files: set[Path] = {
+    ROOT / rel for rel in REQUIRED if (ROOT / rel).is_file()
+}
+for pattern in (
+    ".claude/agents/*.md",
+    ".codex/agents/*.toml",
+    ".gemini/agents/*.md",
+):
+    template_text_files.update(ROOT.glob(pattern))
+
+for path in sorted(template_text_files):
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        fail(f"{path.relative_to(ROOT)}: cannot read bytes for newline check: {exc}")
+        continue
+    if data and not data.endswith(b"\n"):
+        fail(f"{path.relative_to(ROOT)}: text file must end with a newline")
 
 gitignore = read_text(".gitignore")
 for ignored in (".claude/worktrees/", ".gemini/worktrees/"):
