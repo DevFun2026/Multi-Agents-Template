@@ -12,9 +12,9 @@ SUPERPOWERS_REF="8ca22dba9a94f28898bbce59f2537ff4d87c747d"
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/bootstrap.sh
-  ./scripts/bootstrap.sh codex|claude|gemini|all
-  ./scripts/bootstrap.sh --install codex|claude|gemini
+  bash scripts/bootstrap.sh
+  bash scripts/bootstrap.sh codex|claude|gemini|all
+  bash scripts/bootstrap.sh --install codex|claude|gemini
 
 No-argument and positional harness forms are CHECK/INSPECT ONLY.
 --install mutates one harness at a time. "--install all" is intentionally unsupported.
@@ -225,4 +225,4 @@ echo
 echo "Bootstrap complete for $TARGET."
 echo "Validate repository structure with:"
 echo "  python3 -m pip install -r requirements-dev.txt"
-echo "  ./scripts/verify-template.sh"
+echo "  bash scripts/verify-template.sh"
