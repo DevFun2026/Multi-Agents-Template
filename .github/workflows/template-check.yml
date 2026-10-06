@@ -39,6 +39,12 @@ jobs:
           trust_level = "trusted"
           EOF
 
+          codex debug prompt-input x > "$RUNNER_TEMP/codex-prompt-input.txt"
+          if ! grep -q 'MULTI_AGENTS_TEMPLATE_CODEX_PROJECT_CONFIG_ACTIVE' "$RUNNER_TEMP/codex-prompt-input.txt"; then
+            echo "Codex project config was not loaded into the model-visible prompt."
+            exit 1
+          fi
+
           set +e
           codex doctor 2>&1 | tee "$RUNNER_TEMP/codex-doctor.log"
           doctor_rc=${PIPESTATUS[0]}
