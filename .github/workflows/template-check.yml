@@ -39,7 +39,12 @@ jobs:
           trust_level = "trusted"
           EOF
 
+          set +e
           codex doctor 2>&1 | tee "$RUNNER_TEMP/codex-doctor.log"
+          doctor_rc=${PIPESTATUS[0]}
+          set -e
+
+          echo "codex doctor exit code: $doctor_rc (auth/network failures are expected in unauthenticated CI)"
 
           if grep -Eqi 'is ignored|malformed agent role' "$RUNNER_TEMP/codex-doctor.log"; then
             echo "Codex doctor reported an ignored config key or malformed agent role."
