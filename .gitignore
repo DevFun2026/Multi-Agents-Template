@@ -26,3 +26,6 @@ __pycache__/
 # Temporary agent output
 .tmp/
 tmp/
+# Harness-managed worktrees
+.claude/worktrees/
+.gemini/worktrees/
