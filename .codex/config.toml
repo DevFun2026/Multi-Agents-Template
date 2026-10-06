@@ -1,0 +1,46 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+persistent_instructions = "Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. Delegate bounded work to the cheapest capable subagent using clean context. Explicitly select model and reasoning effort for every spawn."
+
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+# Intentionally do not hard-code default_subagent_model here.
+# Child model names can change by Codex build/account/session.
+# If desired, add a machine-level fallback to ~/.codex/config.toml
+# using a model in the CURRENT spawn allowlist:
+#
+# default_subagent_model = "<current-mid-tier-model>"
+# default_subagent_reasoning_effort = "medium"
+
+[agents.explorer]
+description = "Read-only codebase explorer that traces execution paths and returns file/symbol evidence."
+config_file = "agents/explorer.toml"
+
+[agents.researcher]
+description = "Read-only researcher for primary-source, documentation, technical, and comparative evidence."
+config_file = "agents/researcher.toml"
+
+[agents.implementer]
+description = "Bounded implementation agent allowed to modify the workspace and run relevant tests."
+config_file = "agents/implementer.toml"
+
+[agents.reviewer]
+description = "Read-only reviewer focused on correctness, regressions, maintainability, and missing tests."
+config_file = "agents/reviewer.toml"
+
+[agents.security_reviewer]
+description = "Read-only security reviewer focused on trust boundaries, secrets, auth, input, dependencies, and permissions."
+config_file = "agents/security-reviewer.toml"
+
+[agents.uiux_reviewer]
+description = "Read-only UI/UX reviewer focused on design-system consistency, accessibility, responsiveness, and interaction."
+config_file = "agents/uiux-reviewer.toml"
