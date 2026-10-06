@@ -106,10 +106,12 @@ Claude project agents live under `.claude/agents/`.
 - explorer/researcher -> Haiku-class
 - implementer/reviewers -> Sonnet-class
 - implementer -> `isolation: worktree`
+- project worktree base -> committed `HEAD`, not `origin/main`
 - all project agents -> `disallowedTools: Agent`
 - project settings -> `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`
+- project permissions deny common `curl` / `wget` Bash commands
 
-Reviewers can inspect `git diff` and run local tests/checks themselves.
+Uncommitted changes in the parent checkout are not copied into Claude worktrees. The controller must pass the implementer's worktree path plus base/head refs to a fresh reviewer; reviewing the main checkout can otherwise show an empty diff.
 
 ## Gemini behavior
 
@@ -131,11 +133,17 @@ Gemini may have stronger built-in delegation preferences than project instructio
 
 To reduce accidental exfiltration paths:
 
-- local **explorer** can read repository files but has no web tools;
-- external **researcher** can use web tools but cannot read repository files;
-- local **security/UI reviewers** have no outbound web tools by default.
+- local **explorer** has repository tools but no dedicated web tools;
+- external **researcher** is web-only in Claude/Gemini; Codex keeps this as an instruction-level restriction because its role sandbox can still read local files;
+- local **security/UI reviewers** have no dedicated web tools.
 
-The controller passes only the minimal non-sensitive context needed to external researchers.
+"No dedicated web tools" is **not** the same as "no network." Claude `Bash` and Gemini `run_shell_command` can still execute network-capable binaries. Claude project settings deny common `curl`/`wget` commands. For Gemini CLI 0.62.0, workspace policies are currently non-functional, so copy the provided user-policy example to `~/.gemini/policies/` if you want that guardrail:
+
+```text
+examples/gemini-user-policies/reviewer-network-deny.toml
+```
+
+That policy blocks common fetch commands for reviewer roles; it is not a full network sandbox.
 
 ## Start prompts
 
@@ -164,17 +172,17 @@ bash scripts/verify-template.sh
 
 Validation now:
 
-- parses Codex TOML with `tomllib`;
+- parses Codex TOML with `tomllib` on Python 3.11+ or pinned `tomli` on Python 3.9/3.10;
 - parses Gemini/Claude JSON;
-- parses Claude/Gemini YAML frontmatter with PyYAML;
+- parses Claude/Gemini YAML frontmatter with PyYAML and requires explicit `tools`;
 - checks exact `max_depth == 1`;
 - verifies Codex role `config_file` targets;
 - rejects ignored `persistent_instructions`;
 - checks Claude recursion/worktree controls;
-- checks Gemini worktree setting and stale Flash preview pin;
+- mirrors Gemini's strict local-agent frontmatter keys/tool names and role-specific tool sets;
 - runs Bash syntax checks and shellcheck when installed.
 
-GitHub Actions additionally installs **Codex CLI 0.160.1**, creates a throwaway trusted `CODEX_HOME`, runs `codex doctor`, and fails on ignored config keys or malformed agent roles.
+GitHub Actions additionally installs **Codex CLI 0.160.1**, creates a throwaway trusted `CODEX_HOME`, positively asserts a project-only marker through `codex debug prompt-input`, then runs `codex doctor` and fails on ignored config keys or malformed agent roles. The verification wrapper also runs mutation tests proving dangerous config changes are rejected.
 
 ## CI hardening
 
