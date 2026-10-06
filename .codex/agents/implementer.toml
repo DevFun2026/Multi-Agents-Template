@@ -1,3 +1,4 @@
+web_search = "disabled"
 sandbox_mode = "workspace-write"
 
 developer_instructions = """
