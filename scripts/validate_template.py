@@ -59,6 +59,9 @@ REQUIRED = [
     "docs/UPSTREAMS.md",
     "scripts/bootstrap.sh",
     "scripts/verify-template.sh",
+    "scripts/test-bootstrap.py",
+    "scripts/test-validator-mutations.py",
+    "examples/gemini-user-policies/reviewer-network-deny.toml",
 ]
 
 CLAUDE_EXPECTED_TOOLS: dict[str, set[str]] = {
@@ -482,6 +485,23 @@ if "@AGENTS.md" not in read_text("CLAUDE.md"):
     fail("CLAUDE.md must import @AGENTS.md")
 if "@AGENTS.md" not in read_text("GEMINI.md"):
     fail("GEMINI.md must import @AGENTS.md")
+
+gemini_policy = parse_toml("examples/gemini-user-policies/reviewer-network-deny.toml")
+rules = gemini_policy.get("rule")
+if not isinstance(rules, list) or len(rules) < 3:
+    fail("examples/gemini-user-policies/reviewer-network-deny.toml: expected reviewer deny rules")
+else:
+    expected_subagents = {"reviewer", "security-reviewer", "uiux-reviewer"}
+    present_subagents = {
+        rule.get("subagent")
+        for rule in rules
+        if isinstance(rule, dict)
+        and rule.get("toolName") == "run_shell_command"
+        and rule.get("decision") == "deny"
+        and set(rule.get("commandPrefix", [])) >= {"curl", "wget"}
+    }
+    if not expected_subagents.issubset(present_subagents):
+        fail("Gemini reviewer user-policy example must deny curl/wget for all reviewer roles")
 
 gitignore = read_text(".gitignore")
 for ignored in (".claude/worktrees/", ".gemini/worktrees/"):
