@@ -1,19 +1,58 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:-check}"
-TARGET="${2:-all}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 
-if [[ "$MODE" != "check" && "$MODE" != "--install" ]]; then
-  echo "Usage: $0 [--install] [codex|claude|gemini|all]"
+ECC_VERSION="2.2.3"
+ECC_REF="0348d7b6d722c8832b306859b78a1d969b427f5b"
+UIPRO_VERSION="2.15.0"
+SUPERPOWERS_REF="8ca22dba9a94f28898bbce59f2537ff4d87c747d"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./scripts/bootstrap.sh
+  ./scripts/bootstrap.sh codex|claude|gemini|all
+  ./scripts/bootstrap.sh --install codex|claude|gemini
+
+No-argument and positional harness forms are CHECK/INSPECT ONLY.
+--install mutates one harness at a time. "--install all" is intentionally unsupported.
+EOF
+}
+
+ACTION="check"
+TARGET="all"
+
+if [[ $# -eq 0 ]]; then
+  :
+elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
+  usage
+  exit 0
+elif [[ "$1" == "--install" ]]; then
+  if [[ $# -ne 2 ]]; then
+    usage
+    exit 2
+  fi
+  ACTION="install"
+  TARGET="$2"
+  if [[ "$TARGET" == "all" ]]; then
+    echo "[error] --install all is intentionally unsupported."
+    echo "Install one harness at a time so third-party changes can be reviewed."
+    exit 2
+  fi
+elif [[ $# -eq 1 ]]; then
+  TARGET="$1"
+else
+  usage
   exit 2
 fi
 
 case "$TARGET" in
   codex|claude|gemini|all) ;;
   *)
-    echo "Unknown target: $TARGET"
-    echo "Usage: $0 [--install] [codex|claude|gemini|all]"
+    echo "[error] unknown target: $TARGET"
+    usage
     exit 2
     ;;
 esac
@@ -33,11 +72,14 @@ wants() {
 }
 
 echo "== Multi-Agents Template bootstrap =="
+echo "[root] $ROOT_DIR"
+echo "[mode] $ACTION"
+echo "[target] $TARGET"
 
 if have git; then echo "[ok] git: $(git --version)"; else echo "[missing] git"; fi
-if have codex; then echo "[ok] codex"; else echo "[info] codex not found"; fi
-if have claude; then echo "[ok] claude"; else echo "[info] claude not found"; fi
-if have gemini; then echo "[ok] gemini"; else echo "[info] gemini not found"; fi
+if have codex; then echo "[ok] codex: $(codex --version 2>/dev/null || true)"; else echo "[info] codex not found"; fi
+if have claude; then echo "[ok] claude command found"; else echo "[info] claude not found"; fi
+if have gemini; then echo "[ok] gemini: $(gemini --version 2>/dev/null || true)"; else echo "[info] gemini not found"; fi
 
 NODE_OK=false
 if have node; then
@@ -47,115 +89,140 @@ if have node; then
   if [[ "$NODE_MAJOR" =~ ^[0-9]+$ ]] && (( NODE_MAJOR >= 18 )); then
     NODE_OK=true
   else
-    echo "[warn] Node.js 18+ is recommended for ECC/UI UX tooling"
+    echo "[warn] Node.js 18+ is required by ECC universal tooling"
   fi
 else
   echo "[missing] node"
 fi
 
 if have npm; then echo "[ok] npm: $(npm --version)"; else echo "[missing] npm"; fi
-if have python3; then echo "[ok] python3: $(python3 --version 2>&1)"; else echo "[warn] python3 missing; UI UX Pro Max requires Python 3"; fi
+if have python3; then echo "[ok] python3: $(python3 --version 2>&1)"; else echo "[missing] python3"; fi
 
-echo
-echo "Project adapters already included:"
-echo "  Codex      -> .codex/"
-echo "  Claude     -> CLAUDE.md + .claude/agents/"
-echo "  Gemini CLI -> GEMINI.md + .gemini/agents/"
+print_plan() {
+  local harness="$1"
+  case "$harness" in
+    codex)
+      echo
+      echo "== Codex plan =="
+      echo "Superpowers: install interactively from /plugins."
+      echo "ECC source pin: $ECC_REF (release $ECC_VERSION)"
+      echo "UI UX Pro Max CLI pin: $UIPRO_VERSION"
+      ;;
+    claude)
+      echo
+      echo "== Claude Code plan =="
+      echo "Superpowers: install interactively from the official Claude plugin marketplace."
+      echo "ECC npm pin: ecc-universal@$ECC_VERSION"
+      echo "UI UX Pro Max CLI pin: $UIPRO_VERSION"
+      ;;
+    gemini)
+      echo
+      echo "== Gemini CLI plan =="
+      echo "Superpowers Git pin: $SUPERPOWERS_REF"
+      echo "ECC source pin for reviewed manual adapter step: $ECC_REF"
+      echo "UI UX Pro Max CLI pin: $UIPRO_VERSION"
+      ;;
+  esac
+}
 
-if [[ "$MODE" != "--install" ]]; then
+for harness in codex claude gemini; do
+  if wants "$harness"; then
+    print_plan "$harness"
+  fi
+done
+
+if [[ "$ACTION" == "check" ]]; then
   echo
-  echo "Check-only mode made no installation changes."
-  echo "Install one harness with:"
-  echo "  $0 --install codex"
-  echo "  $0 --install claude"
-  echo "  $0 --install gemini"
-  echo
-  echo "See docs/UPSTREAMS.md before installing third-party integrations."
+  echo "Check/inspect mode made no installation changes."
+  echo "Use --install with exactly one harness when ready."
   exit 0
 fi
 
 ensure_uipro() {
   if ! $NODE_OK || ! have npm; then
     echo "[skip] UI UX Pro Max: Node.js 18+/npm not ready"
-    return
+    return 1
   fi
 
-  if ! have uipro; then
-    echo "[install] ui-ux-pro-max-cli"
-    npm install -g ui-ux-pro-max-cli
+  echo "[install] pinning ui-ux-pro-max-cli@$UIPRO_VERSION"
+  npm install -g "ui-ux-pro-max-cli@$UIPRO_VERSION"
+}
+
+install_uipro_for() {
+  local harness="$1"
+  if ensure_uipro; then
+    echo "[preview] UI UX Pro Max for $harness"
+    uipro init --ai "$harness" --dry-run
+    echo "[install] UI UX Pro Max for $harness"
+    uipro init --ai "$harness"
   fi
 }
 
-if wants codex; then
+if [[ "$TARGET" == "codex" ]]; then
   echo
-  echo "== Codex =="
-
-  echo "[manual] Superpowers:"
-  echo "  Start Codex, run /plugins, search Superpowers, select Install Plugin."
+  echo "== Install Codex integrations =="
+  echo "[manual] Superpowers: Start Codex, run /plugins, search Superpowers, select Install Plugin."
 
   if have codex; then
-    echo "[install] ECC native Codex plugin"
-    codex plugin marketplace add affaan-m/ECC
+    echo "[install] ECC native Codex marketplace pinned to $ECC_REF"
+    codex plugin marketplace add affaan-m/ECC --ref "$ECC_REF"
     codex plugin add ecc@ecc
     codex plugin list --json
   else
     echo "[skip] ECC for Codex: codex command not found"
   fi
 
-  ensure_uipro
-  if have uipro; then
-    echo "[install] UI UX Pro Max for Codex"
-    uipro init --ai codex
-  fi
+  install_uipro_for codex
 fi
 
-if wants claude; then
+if [[ "$TARGET" == "claude" ]]; then
   echo
-  echo "== Claude Code =="
-
-  echo "[manual] Superpowers inside Claude Code:"
-  echo "  /plugin install superpowers@claude-plugins-official"
+  echo "== Install Claude Code integrations =="
+  echo "[manual] Superpowers inside Claude Code: /plugin install superpowers@claude-plugins-official"
 
   if $NODE_OK && have npm; then
-    echo "[install] ECC for Claude Code using official guided installer"
-    npx ecc-universal@2.2.3 install --guided --harness claude --claude-scope local --claude-hooks standard --profile core --yes
+    echo "[preview] ECC for Claude Code"
+    npx "ecc-universal@$ECC_VERSION" install --guided --harness claude --claude-scope local --claude-hooks standard --profile core --yes --dry-run
+    echo "[install] ECC for Claude Code"
+    npx "ecc-universal@$ECC_VERSION" install --guided --harness claude --claude-scope local --claude-hooks standard --profile core --yes
   else
     echo "[skip] ECC for Claude: Node.js 18+/npm not ready"
   fi
 
-  ensure_uipro
-  if have uipro; then
-    echo "[install] UI UX Pro Max for Claude Code"
-    uipro init --ai claude
-  fi
+  install_uipro_for claude
 fi
 
-if wants gemini; then
+if [[ "$TARGET" == "gemini" ]]; then
   echo
-  echo "== Gemini CLI =="
+  echo "== Install Gemini CLI integrations =="
 
   if have gemini; then
-    echo "[install] Superpowers Gemini extension"
-    gemini extensions install https://github.com/obra/superpowers
+    if gemini extensions list 2>/dev/null | grep -qi 'superpowers'; then
+      echo "[ok] Superpowers extension already installed; leaving its current ref unchanged."
+      echo "     To force the template pin, uninstall it first and rerun this command."
+    else
+      echo "[install] Superpowers pinned to $SUPERPOWERS_REF"
+      gemini extensions install https://github.com/obra/superpowers --ref "$SUPERPOWERS_REF" --consent
+    fi
   else
     echo "[skip] Superpowers for Gemini: gemini command not found"
   fi
 
-  echo "[manual] ECC Gemini adapter:"
-  echo "  ECC currently documents a project-local adapter from a reviewed ECC checkout:"
-  echo "    git clone https://github.com/affaan-m/ECC.git /tmp/ecc"
-  echo "    cd /tmp/ecc"
-  echo "    ./install.sh --profile minimal --target gemini"
-  echo "  Review the generated .gemini changes before merging because this template already defines project agents."
+  echo
+  echo "[manual-review] ECC Gemini adapter is not auto-applied because it writes project-local .gemini files."
+  echo "Run the reviewed ECC checkout from THIS project root (do not cd into the ECC checkout):"
+  echo '  tmp_dir="$(mktemp -d)"'
+  echo '  git clone https://github.com/affaan-m/ECC.git "$tmp_dir/ECC"'
+  echo '  git -C "$tmp_dir/ECC" checkout '"$ECC_REF"''
+  echo '  "$tmp_dir/ECC/install.sh" --profile minimal --target gemini --dry-run'
+  echo "Inspect the dry-run output. If acceptable, run the same command without --dry-run, still from this project root."
+  echo "Then review the resulting .gemini diff before committing it."
 
-  ensure_uipro
-  if have uipro; then
-    echo "[install] UI UX Pro Max for Gemini CLI"
-    uipro init --ai gemini
-  fi
+  install_uipro_for gemini
 fi
 
 echo
-echo "Bootstrap complete."
+echo "Bootstrap complete for $TARGET."
 echo "Validate repository structure with:"
+echo "  python3 -m pip install -r requirements-dev.txt"
 echo "  ./scripts/verify-template.sh"
