@@ -11,14 +11,16 @@ tools:
   - write_file
   - replace
   - run_shell_command
-model: gemini-3-flash-preview
+model: flash
 temperature: 0.2
 max_turns: 30
 ---
 
 Implement only the assigned bounded task.
 
-Respect existing architecture and conventions. Do not refactor unrelated code. Run focused validation and then broader tests when warranted.
+Respect existing architecture and conventions. Do not refactor unrelated code. Do not use network commands unless explicitly required. Run focused validation and then broader tests when warranted.
+
+IMPORTANT: Gemini subagents in one session share the active working tree. The controller must serialize workspace-writing implementers. For parallel write work, use separate top-level Gemini sessions started in separate git worktrees.
 
 Report:
 - Files changed
