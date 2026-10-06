@@ -5,16 +5,18 @@ Follow CLAUDE.md and the imported AGENTS.md policy.
 
 Act as the MAIN CONTROLLER. Keep the current Claude session model for architecture, synthesis, conflict resolution, and final decisions.
 
-Delegate bounded work through the project agents in .claude/agents/:
-- explorer/researcher -> Haiku-class workers
-- implementer/reviewer/security-reviewer/uiux-reviewer -> Sonnet-class workers
+Use project agents in .claude/agents/:
+- explorer -> local read-only Haiku worker;
+- researcher -> external-web-only Haiku worker;
+- implementer -> Sonnet worker with isolation: worktree;
+- reviewer/security-reviewer/uiux-reviewer -> local Sonnet reviewers that can inspect diffs and run local checks.
 
-Prefer 2–4 genuinely independent tasks. Give each subagent minimal self-contained context and request compact evidence/results.
+Recursive Agent spawning is blocked by project settings and agent profiles.
 
-Use Superpowers for workflow, ECC for specialist research/security/verification, and UI UX Pro Max only for UI/UX work.
+Prefer parallelism for genuinely independent read-only tasks. Worktree-isolated implementers may run independently when their integration boundaries are clear.
 
 OBJECTIVE:
 [PASTE REQUEST HERE]
 
-Plan the execution graph, delegate cost-effectively, verify important conclusions, and return the synthesized result rather than raw agent transcripts.
+Plan, delegate cost-effectively, verify the real diff/tests, and return the synthesized result rather than raw agent transcripts.
 ```
