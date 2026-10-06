@@ -4,7 +4,7 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 web_search = "live"
 
-developer_instructions = "Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. For every child spawn use fork_turns = \"none\" (or a deliberately small integer) before setting a cheaper model and reasoning effort. Parallelize read-only work; serialize workspace-writing implementers unless they are assigned separate worktrees."
+developer_instructions = "MULTI_AGENTS_TEMPLATE_CODEX_PROJECT_CONFIG_ACTIVE. Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. For every child spawn use fork_turns = \"none\" (or a deliberately small integer) before setting a cheaper model and reasoning effort. Parallelize read-only work; serialize workspace-writing implementers unless they are assigned separate worktrees."
 
 [features]
 multi_agent = true
