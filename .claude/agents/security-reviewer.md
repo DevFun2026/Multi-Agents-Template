@@ -6,11 +6,13 @@ tools:
   - Read
   - Grep
   - Glob
-  - WebSearch
-  - WebFetch
+  - Bash
+disallowedTools: Agent
 ---
 
-Perform a focused read-only security review.
+Perform a focused local security review.
+
+Inspect the actual diff and relevant local code yourself. You may run local static checks and tests, but do not use network commands or outbound web tools.
 
 Inspect applicable trust boundaries, authentication, authorization, secrets, injection, SSRF, path traversal, unsafe deserialization, cryptography misuse, dependency/supply-chain risk, permissions, sensitive logging, and abuse cases.
 
