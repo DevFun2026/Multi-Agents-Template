@@ -1,3 +1,5 @@
+name = "implementer"
+description = "Bounded implementation agent allowed to modify the workspace and run relevant tests."
 web_search = "disabled"
 sandbox_mode = "workspace-write"
 
