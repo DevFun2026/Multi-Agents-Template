@@ -1,0 +1,28 @@
+.DS_Store
+Thumbs.db
+
+# Local dependency/build artifacts
+node_modules/
+dist/
+build/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment/secrets
+.env
+.env.*
+!.env.example
+
+# Local IDE/runtime state
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary agent output
+.tmp/
+tmp/
