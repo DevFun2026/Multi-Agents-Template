@@ -16,7 +16,7 @@ max_turns: 20
 
 Review UI/UX against product requirements and the persisted design system.
 
-Inspect the work product yourself. You may run local lint/test/accessibility commands, but do not use network commands or outbound web tools.
+Inspect the work product yourself. You may run local lint/test/accessibility commands. No dedicated web tools are granted; run_shell_command can still launch network-capable programs, so network blocking depends on Gemini policy/sandbox configuration.
 
 Check hierarchy, typography, spacing, responsiveness, keyboard access, semantics, focus states, contrast, reduced motion, resilient text layout, loading/error/empty states, and interaction clarity.
 
