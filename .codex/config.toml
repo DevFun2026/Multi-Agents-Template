@@ -4,7 +4,7 @@ approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 web_search = "live"
 
-persistent_instructions = "Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. Delegate bounded work to the cheapest capable subagent using clean context. Explicitly select model and reasoning effort for every spawn."
+developer_instructions = "Follow the repository AGENTS.md. Keep the main session for synthesis and final decisions. For every child spawn use fork_turns = \"none\" (or a deliberately small integer) before setting a cheaper model and reasoning effort. Parallelize read-only work; serialize workspace-writing implementers unless they are assigned separate worktrees."
 
 [features]
 multi_agent = true
@@ -15,11 +15,7 @@ max_depth = 1
 
 # Intentionally do not hard-code default_subagent_model here.
 # Child model names can change by Codex build/account/session.
-# If desired, add a machine-level fallback to ~/.codex/config.toml
-# using a model in the CURRENT spawn allowlist:
-#
-# default_subagent_model = "<current-mid-tier-model>"
-# default_subagent_reasoning_effort = "medium"
+# Per-spawn routing in AGENTS.md is authoritative.
 
 [agents.explorer]
 description = "Read-only codebase explorer that traces execution paths and returns file/symbol evidence."
