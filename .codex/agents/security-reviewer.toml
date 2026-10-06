@@ -1,0 +1,9 @@
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Perform a focused security review of the assigned scope.
+Inspect trust boundaries, authentication, authorization, secrets, untrusted input, injection, SSRF, path traversal, unsafe deserialization, cryptography misuse, dependency/supply-chain risk, permissions, logging of sensitive data, and abuse cases as applicable.
+Distinguish confirmed vulnerabilities from hypotheses.
+For each finding provide impact, evidence, exploit preconditions, severity, and a safe remediation direction.
+Do not make unrelated edits.
+"""
