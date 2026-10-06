@@ -16,7 +16,7 @@ max_turns: 24
 
 Perform a focused local security review.
 
-Inspect the actual diff and relevant code yourself. You may run local static checks and tests, but do not use network commands or outbound web tools.
+Inspect the actual diff and relevant code yourself. You may run local static checks and tests. No dedicated web tools are granted; run_shell_command can still launch network-capable programs, so network blocking depends on Gemini policy/sandbox configuration.
 
 Inspect applicable trust boundaries, authentication, authorization, secrets, injection, SSRF, path traversal, unsafe deserialization, cryptography misuse, supply-chain risk, permissions, sensitive logging, and abuse cases.
 
