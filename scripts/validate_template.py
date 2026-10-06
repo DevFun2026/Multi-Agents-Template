@@ -546,7 +546,7 @@ if not isinstance(rules, list) or len(rules) < 3:
     fail("examples/gemini-user-policies/reviewer-network-deny.toml: expected reviewer deny rules")
 else:
     expected_subagents = {"reviewer", "security-reviewer", "uiux-reviewer"}
-    present_subagents = {
+    prefix_subagents = {
         rule.get("subagent")
         for rule in rules
         if isinstance(rule, dict)
@@ -554,8 +554,19 @@ else:
         and rule.get("decision") == "deny"
         and set(rule.get("commandPrefix", [])) >= {"curl", "wget"}
     }
-    if not expected_subagents.issubset(present_subagents):
-        fail("Gemini reviewer user-policy example must deny curl/wget for all reviewer roles")
+    regex_subagents = {
+        rule.get("subagent")
+        for rule in rules
+        if isinstance(rule, dict)
+        and rule.get("toolName") == "run_shell_command"
+        and rule.get("decision") == "deny"
+        and isinstance(rule.get("commandRegex"), str)
+        and "curl|wget" in rule.get("commandRegex", "")
+    }
+    if not expected_subagents.issubset(prefix_subagents):
+        fail("Gemini reviewer user-policy example must deny curl/wget prefixes for all reviewer roles")
+    if not expected_subagents.issubset(regex_subagents):
+        fail("Gemini reviewer user-policy example must include wrapped curl/wget regex rules for all reviewer roles")
 
 gitignore = read_text(".gitignore")
 for ignored in (".claude/worktrees/", ".gemini/worktrees/"):
