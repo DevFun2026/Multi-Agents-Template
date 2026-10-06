@@ -211,10 +211,10 @@ if [[ "$TARGET" == "gemini" ]]; then
   echo
   echo "[manual-review] ECC Gemini adapter is not auto-applied because it writes project-local .gemini files."
   echo "Run the reviewed ECC checkout from THIS project root (do not cd into the ECC checkout):"
-  echo '  tmp_dir="$(mktemp -d)"'
-  echo '  git clone https://github.com/affaan-m/ECC.git "$tmp_dir/ECC"'
-  echo '  git -C "$tmp_dir/ECC" checkout '"$ECC_REF"''
-  echo '  "$tmp_dir/ECC/install.sh" --profile minimal --target gemini --dry-run'
+  echo "  tmp_dir=\"\$(mktemp -d)\""
+  echo "  git clone https://github.com/affaan-m/ECC.git \"\$tmp_dir/ECC\""
+  echo "  git -C \"\$tmp_dir/ECC\" checkout $ECC_REF"
+  echo "  \"\$tmp_dir/ECC/install.sh\" --profile minimal --target gemini --dry-run"
   echo "Inspect the dry-run output. If acceptable, run the same command without --dry-run, still from this project root."
   echo "Then review the resulting .gemini diff before committing it."
 
