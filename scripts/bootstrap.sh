@@ -96,7 +96,16 @@ else
 fi
 
 if have npm; then echo "[ok] npm: $(npm --version)"; else echo "[missing] npm"; fi
-if have python3; then echo "[ok] python3: $(python3 --version 2>&1)"; else echo "[missing] python3"; fi
+if have python3; then
+  echo "[ok] python3: $(python3 --version 2>&1)"
+  if python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)'; then
+    echo "[ok] Python version supports the validator (tomli fallback is used below 3.11)"
+  else
+    echo "[warn] Python 3.9+ is required for template validation"
+  fi
+else
+  echo "[missing] python3"
+fi
 
 print_plan() {
   local harness="$1"
@@ -151,9 +160,8 @@ ensure_uipro() {
 install_uipro_for() {
   local harness="$1"
   if ensure_uipro; then
-    echo "[preview] UI UX Pro Max for $harness"
-    uipro init --ai "$harness" --dry-run
     echo "[install] UI UX Pro Max for $harness"
+    echo "[note] ui-ux-pro-max-cli $UIPRO_VERSION has no --dry-run; init writes to the current project."
     uipro init --ai "$harness"
   fi
 }
@@ -165,9 +173,23 @@ if [[ "$TARGET" == "codex" ]]; then
 
   if have codex; then
     echo "[install] ECC native Codex marketplace pinned to $ECC_REF"
-    codex plugin marketplace add affaan-m/ECC --ref "$ECC_REF"
-    codex plugin add ecc@ecc
-    codex plugin list --json
+    set +e
+    marketplace_output="$(codex plugin marketplace add affaan-m/ECC --ref "$ECC_REF" 2>&1)"
+    marketplace_rc=$?
+    set -e
+    printf '%s\n' "$marketplace_output"
+
+    if [[ "$marketplace_rc" -eq 0 ]]; then
+      codex plugin add ecc@ecc
+      codex plugin list --json
+    elif grep -qi 'already added from a different source' <<<"$marketplace_output"; then
+      echo "[warn] Existing ECC marketplace was added from a different source/ref."
+      echo "       Leaving it unchanged instead of silently using an unpinned source."
+      echo "       Remove/update the existing affaan-m/ECC marketplace in Codex, then rerun this command."
+    else
+      echo "[error] Failed to add the pinned ECC marketplace."
+      exit "$marketplace_rc"
+    fi
   else
     echo "[skip] ECC for Codex: codex command not found"
   fi
@@ -197,7 +219,8 @@ if [[ "$TARGET" == "gemini" ]]; then
   echo "== Install Gemini CLI integrations =="
 
   if have gemini; then
-    if gemini extensions list 2>/dev/null | grep -qi 'superpowers'; then
+    extension_list="$(gemini extensions list 2>&1 || true)"
+    if grep -qi 'superpowers' <<<"$extension_list"; then
       echo "[ok] Superpowers extension already installed; leaving its current ref unchanged."
       echo "     To force the template pin, uninstall it first and rerun this command."
     else
