@@ -190,14 +190,14 @@ This helper intentionally violates the local/web separation invariant.
         "new Codex role must declare web_search explicitly",
         lambda root: (
             (root / ".codex/agents/docs.toml").write_text(
-                """name = "docs"
+                '''name = "docs"
 description = "Documentation helper."
 sandbox_mode = "read-only"
 
 developer_instructions = """
 Review documentation only.
 """
-""",
+''',
                 encoding="utf-8",
             ),
             mutate_text(
