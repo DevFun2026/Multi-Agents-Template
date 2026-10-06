@@ -1,3 +1,5 @@
+name = "uiux-reviewer"
+description = "Read-only UI/UX reviewer focused on design-system consistency, accessibility, responsiveness, and interaction."
 web_search = "disabled"
 sandbox_mode = "read-only"
 
