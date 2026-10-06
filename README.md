@@ -143,7 +143,9 @@ To reduce accidental exfiltration paths:
 examples/gemini-user-policies/reviewer-network-deny.toml
 ```
 
-That policy blocks common fetch commands for reviewer roles; it is not a full network sandbox.
+That policy blocks direct/common wrapped `curl`/`wget` forms (including common absolute-path, `env`, and `VAR=value` prefixes); it is still not a full network sandbox. Programs such as Python, Node, nc, ssh, or a missed shell wrapper can still open sockets.
+
+For a stronger boundary, use Claude Code's Bash sandbox/network controls (with an explicit network allowlist) and run Gemini CLI with `--sandbox` where appropriate.
 
 ## Start prompts
 
@@ -200,3 +202,16 @@ GitHub Actions additionally installs **Codex CLI 0.160.1**, creates a throwaway 
 ---
 
 The goal is not maximum agent count. The goal is the best final decision for the least total context/cost without pretending the three harnesses behave identically.
+
+## Adding custom agents
+
+The validator applies safety invariants to **every** project agent file, not only the six built-in role names.
+
+- The agent `name` must match the filename stem.
+- Claude and Gemini agents must declare `tools` explicitly.
+- Claude/Gemini agents may not combine local/shell-capable tools with dedicated web tools in one role.
+- Gemini custom agents must use only strict supported frontmatter keys and valid tool names.
+- Every Codex role file under `.codex/agents/*.toml` must be self-contained with `name`, `description`, `developer_instructions`, and an explicit `web_search` value.
+- If a Codex role is referenced from `.codex/config.toml`, the declared role key, role-file `name`, and filename stem must agree.
+
+Custom Codex roles may explicitly choose live web search, but Codex role TOML does not provide the same hard local-file-vs-web capability split as Claude/Gemini tool lists. Treat that distinction as an instruction/sandbox boundary rather than a guaranteed tool-level separation.
