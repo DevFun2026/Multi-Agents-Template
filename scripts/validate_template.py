@@ -64,6 +64,9 @@ REQUIRED = [
     "examples/gemini-user-policies/reviewer-network-deny.toml",
 ]
 
+CLAUDE_LOCAL_CAPABLE_TOOLS = {"Read", "Grep", "Glob", "Write", "Edit", "Bash"}
+CLAUDE_WEB_TOOLS = {"WebSearch", "WebFetch"}
+
 CLAUDE_EXPECTED_TOOLS: dict[str, set[str]] = {
     "explorer": {"Read", "Grep", "Glob"},
     "researcher": {"WebSearch", "WebFetch"},
@@ -116,6 +119,18 @@ GEMINI_BUILTIN_TOOLS = {
     "list_mcp_resources",
 }
 
+GEMINI_LOCAL_CAPABLE_TOOLS = {
+    "read_file",
+    "read_many_files",
+    "list_directory",
+    "glob",
+    "grep_search",
+    "write_file",
+    "replace",
+    "run_shell_command",
+}
+GEMINI_WEB_TOOLS = {"google_web_search", "web_fetch"}
+
 GEMINI_EXPECTED_TOOLS: dict[str, set[str]] = {
     "explorer": {"read_file", "read_many_files", "list_directory", "glob", "grep_search"},
     "researcher": {"google_web_search", "web_fetch"},
@@ -155,13 +170,6 @@ GEMINI_EXPECTED_TOOLS: dict[str, set[str]] = {
     },
 }
 
-CODEX_LOCAL_ROLES = {
-    ".codex/agents/explorer.toml",
-    ".codex/agents/implementer.toml",
-    ".codex/agents/reviewer.toml",
-    ".codex/agents/security-reviewer.toml",
-    ".codex/agents/uiux-reviewer.toml",
-}
 
 errors: list[str] = []
 
@@ -376,21 +384,48 @@ else:
         if not (ROOT / role_path).is_file():
             fail(f".codex/config.toml: agent role {name!r} points to missing {role_path}")
         else:
-            parse_toml(role_path)
+            role_file = parse_toml(role_path)
+            role_file_name = role_file.get("name")
+            if isinstance(role_file_name, str) and role_file_name != name:
+                fail(
+                    f"{role_path}: name {role_file_name!r} must match declared "
+                    f"Codex role name {name!r}"
+                )
 
 if "persistent_instructions" in codex:
     fail(".codex/config.toml: persistent_instructions is ignored; use developer_instructions")
 if not isinstance(codex.get("developer_instructions"), str):
     fail(".codex/config.toml: developer_instructions must be present")
 
-for rel in sorted(CODEX_LOCAL_ROLES):
+for path in sorted((ROOT / ".codex/agents").glob("*.toml")):
+    rel = str(path.relative_to(ROOT))
     role = parse_toml(rel)
-    if role.get("web_search") != "disabled":
-        fail(f"{rel}: local Codex role must set web_search = \"disabled\"")
+    expected_name = path.stem
+    role_name = role.get("name")
+
+    if role_name != expected_name:
+        fail(f"{rel}: name must equal filename stem {expected_name!r}")
+
+    if not isinstance(role.get("description"), str) or not role.get("description", "").strip():
+        fail(f"{rel}: description must be a non-empty string")
+
+    if not isinstance(role.get("developer_instructions"), str) or not role.get("developer_instructions", "").strip():
+        fail(f"{rel}: developer_instructions must be a non-empty string")
+
+    if "web_search" not in role:
+        fail(f"{rel}: web_search must be declared explicitly")
 
 codex_researcher = parse_toml(".codex/agents/researcher.toml")
 if codex_researcher.get("web_search") != "live":
     fail(".codex/agents/researcher.toml: external researcher must explicitly set web_search = \"live\"")
+
+for path in sorted((ROOT / ".codex/agents").glob("*.toml")):
+    if path.name == "researcher.toml":
+        continue
+    rel = str(path.relative_to(ROOT))
+    role = parse_toml(rel)
+    if role.get("web_search") != "disabled":
+        fail(f"{rel}: template local role must set web_search = \"disabled\"")
 
 agents_policy = read_text("AGENTS.md")
 codex_prompt = read_text("prompts/codex-session-start.md")
@@ -428,8 +463,15 @@ for path in sorted((ROOT / ".claude/agents").glob("*.md")):
             fail(f"{rel}: frontmatter {key!r} must be a non-empty string")
 
     name = fm.get("name")
+    expected_name = path.stem
+    if name != expected_name:
+        fail(f"{rel}: name must equal filename stem {expected_name!r}")
+
     tools = set(normalize_claude_tools(fm.get("tools"), rel))
     disallowed = set(normalize_disallowed_tools(fm.get("disallowedTools"), rel))
+
+    if tools & CLAUDE_LOCAL_CAPABLE_TOOLS and tools & CLAUDE_WEB_TOOLS:
+        fail(f"{rel}: agent must not combine local/shell tools with web tools")
 
     if "Agent" not in disallowed:
         fail(f"{rel}: disallowedTools must include Agent")
@@ -468,7 +510,14 @@ for path in sorted((ROOT / ".gemini/agents").glob("*.md")):
         fail(f"{rel}: kind must be local")
 
     name = fm.get("name")
+    expected_name = path.stem
+    if name != expected_name:
+        fail(f"{rel}: name must equal filename stem {expected_name!r}")
+
     tools = set(normalize_gemini_tools(fm.get("tools"), rel))
+
+    if tools & GEMINI_LOCAL_CAPABLE_TOOLS and tools & GEMINI_WEB_TOOLS:
+        fail(f"{rel}: agent must not combine local/shell tools with web tools")
 
     if fm.get("model") == "gemini-3-flash-preview":
         fail(f"{rel}: use the flash alias instead of stale gemini-3-flash-preview pin")
