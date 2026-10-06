@@ -1,0 +1,29 @@
+# Copy this file to ~/.gemini/policies/reviewer-network-deny.toml
+# for Gemini CLI 0.62.0. Workspace .gemini/policies are currently non-functional.
+#
+# This is a narrow guardrail for common fetch commands, not a complete
+# network sandbox: other programs can still open sockets.
+
+[[rule]]
+name = "Deny reviewer curl/wget"
+subagent = "reviewer"
+toolName = "run_shell_command"
+commandPrefix = ["curl", "wget"]
+decision = "deny"
+priority = 900
+
+[[rule]]
+name = "Deny security reviewer curl/wget"
+subagent = "security-reviewer"
+toolName = "run_shell_command"
+commandPrefix = ["curl", "wget"]
+decision = "deny"
+priority = 900
+
+[[rule]]
+name = "Deny UIUX reviewer curl/wget"
+subagent = "uiux-reviewer"
+toolName = "run_shell_command"
+commandPrefix = ["curl", "wget"]
+decision = "deny"
+priority = 900
