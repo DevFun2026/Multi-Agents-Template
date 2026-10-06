@@ -1,186 +1,148 @@
 # Upstream Skill Packs
 
-This template integrates three upstream projects without vendoring their full repositories.
+The template integrates Superpowers, ECC, and UI UX Pro Max without vendoring their full repositories.
 
-That keeps updates independent, avoids duplicate skill discovery, and reduces repository/context bloat.
+## Reviewed pins used by bootstrap
 
-## Support matrix
+| Component | Pin |
+|---|---|
+| ECC npm | `ecc-universal@2.2.3` |
+| ECC Git source | `0348d7b6d722c8832b306859b78a1d969b427f5b` |
+| UI UX Pro Max CLI | `ui-ux-pro-max-cli@2.15.0` |
+| Superpowers Gemini extension | `8ca22dba9a94f28898bbce59f2537ff4d87c747d` |
 
-| Skill pack | Codex | Claude Code | Gemini CLI |
-|---|---|---|---|
-| Superpowers | native Codex plugin | official Claude plugin | Gemini extension |
-| ECC | native Codex plugin | native Claude plugin | project-local Gemini adapter |
-| UI UX Pro Max | `uipro init --ai codex` | `uipro init --ai claude` or marketplace | `uipro init --ai gemini` |
+The Codex CI validator itself is pinned to `@openai/codex@0.160.1`.
 
-## 1. Superpowers
+## Superpowers
 
 Repository:
 
 https://github.com/obra/superpowers
 
-Role:
-- workflow authority;
-- brainstorming;
-- planning;
-- subagent-driven development;
-- TDD;
-- code review and completion.
-
 ### Codex
 
-Inside Codex:
-
-```text
-/plugins
-```
-
-Search for **Superpowers** and select **Install Plugin**.
+Install interactively from Codex `/plugins`.
 
 ### Claude Code
 
-Official marketplace:
+Install interactively from the official Claude plugin marketplace:
 
 ```text
 /plugin install superpowers@claude-plugins-official
 ```
 
-Alternative upstream marketplace:
-
-```text
-/plugin marketplace add obra/superpowers-marketplace
-/plugin install superpowers@superpowers-marketplace
-```
-
-Use one installation path.
-
 ### Gemini CLI
 
-```bash
-gemini extensions install https://github.com/obra/superpowers
-```
-
-Update later:
+Bootstrap installs the reviewed Git ref non-interactively:
 
 ```bash
-gemini extensions update superpowers
+gemini extensions install https://github.com/obra/superpowers \
+  --ref 8ca22dba9a94f28898bbce59f2537ff4d87c747d \
+  --consent
 ```
 
-## 2. ECC
+If Superpowers is already installed, bootstrap does not fail or silently retarget it; it reports the existing install and leaves it unchanged.
+
+## ECC
 
 Repository:
 
 https://github.com/affaan-m/ECC
 
-Role:
-- research;
-- specialist engineering;
-- codebase exploration;
-- architecture;
-- security;
-- debugging;
-- verification;
-- context management.
-
 ### Codex
 
+Bootstrap registers the marketplace at the reviewed ECC release commit:
+
 ```bash
-codex plugin marketplace add affaan-m/ECC
+codex plugin marketplace add affaan-m/ECC \
+  --ref 0348d7b6d722c8832b306859b78a1d969b427f5b
 codex plugin add ecc@ecc
-codex plugin list --json
 ```
-
-Alternative guided path:
-
-```bash
-npx ecc-universal@2.2.3 install --guided --harness codex
-```
-
-Do not stack the native Codex plugin with the legacy sync flow.
 
 ### Claude Code
 
-Native plugin commands:
-
-```text
-/plugin marketplace add https://github.com/affaan-m/ECC
-/plugin install ecc@ecc
-```
-
-Or use ECC's guided installer:
+Bootstrap runs a dry-run before applying the pinned installer:
 
 ```bash
-npx ecc-universal@2.2.3 install --guided --harness claude
+npx ecc-universal@2.2.3 install --guided \
+  --harness claude \
+  --claude-scope local \
+  --claude-hooks standard \
+  --profile core \
+  --yes \
+  --dry-run
 ```
 
-Choose one Claude installation method. Do not stack the plugin and full manual install.
+Then, if accepted by the explicit `--install claude` operation, it runs the same pinned command without `--dry-run`.
 
 ### Gemini CLI
 
-ECC currently documents Gemini as an advanced project-local adapter from an ECC checkout:
+ECC's Gemini adapter writes relative to the **current working directory**.
+
+Do **not** `cd` into the ECC checkout before running its installer.
+
+Correct reviewed flow from the target project root:
 
 ```bash
-git clone https://github.com/affaan-m/ECC.git
-cd ECC
-./install.sh --profile minimal --target gemini
+tmp_dir="$(mktemp -d)"
+git clone https://github.com/affaan-m/ECC.git "$tmp_dir/ECC"
+git -C "$tmp_dir/ECC" checkout 0348d7b6d722c8832b306859b78a1d969b427f5b
+
+"$tmp_dir/ECC/install.sh" --profile minimal --target gemini --dry-run
+# inspect output
+"$tmp_dir/ECC/install.sh" --profile minimal --target gemini
 ```
 
-Because this template already contains `.gemini/settings.json` and `.gemini/agents/`, review the generated project changes and merge deliberately instead of blindly overwriting the template's native worker definitions.
+Because this template already owns `.gemini/agents/` and `.gemini/settings.json`, bootstrap intentionally does not auto-apply the ECC Gemini adapter. Review and merge its generated changes deliberately.
 
-## 3. UI UX Pro Max
+## UI UX Pro Max
 
 Repository:
 
 https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
 
-Role:
-- design-system intelligence;
-- UI patterns;
-- typography/color;
-- responsive guidance;
-- accessibility;
-- UX and visual review.
-
-Install CLI:
+Bootstrap pins:
 
 ```bash
-npm install -g ui-ux-pro-max-cli
+npm install -g ui-ux-pro-max-cli@2.15.0
 ```
 
-Then initialize the harness you use:
+Before writing project files it previews:
 
 ```bash
-uipro init --ai codex
-uipro init --ai claude
-uipro init --ai gemini
+uipro init --ai <codex|claude|gemini> --dry-run
 ```
 
-Claude Code also supports the upstream marketplace:
+and then applies the same harness target.
 
-```text
-/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
-/plugin install ui-ux-pro-max@ui-ux-pro-max-skill
+## Bootstrap safety model
+
+```bash
+./scripts/bootstrap.sh all
 ```
 
-Python 3 is required by the skill search script.
+is inspect/check only.
 
-Use UI UX Pro Max only when the actual task includes UI/UX work.
+```bash
+./scripts/bootstrap.sh --install all
+```
 
-## Update strategy
+is intentionally rejected.
 
-Keep upstream projects independent.
+Install one harness at a time so third-party config changes are reviewable.
 
-- Update through each project's supported plugin/package lifecycle.
-- Review release notes before major updates.
-- Do not copy hundreds of upstream skills into the template.
-- Rerun `./scripts/verify-template.sh` after adapter or agent changes.
-- Keep `AGENTS.md` as the provider-neutral orchestration source of truth.
+The script always changes to the template/project root before invoking project-local installers.
 
-## Trust and supply chain
+## Updating pins
 
-External packages, extensions, plugins, and repositories are third-party code.
+Update one component at a time:
 
-Before using installation/update commands in a sensitive environment:
-- review upstream source/release;
-- pin versions where reproducibility matters;
-- inspect generated configuration changes;
-- do not blindly execute instructions retrieved from untrusted pages.
+1. review upstream release/source;
+2. update the pin;
+3. run bootstrap in check mode;
+4. run dry-run-capable installers;
+5. inspect project diffs;
+6. run `./scripts/verify-template.sh`;
+7. let CI run Codex doctor.
+
+Do not convert reviewed pins back to mutable `main`/latest references without an explicit reason.
