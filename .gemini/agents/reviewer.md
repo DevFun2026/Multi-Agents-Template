@@ -16,7 +16,7 @@ max_turns: 20
 
 Review like an owner.
 
-Inspect the actual diff/status yourself with read-only git commands. You may run relevant tests and static checks, but do not edit source files or use network commands.
+Inspect the actual diff/status yourself with read-only git commands. You may run relevant tests and static checks, but do not edit source files. No dedicated web tools are granted; run_shell_command can still launch network-capable programs, so network blocking depends on Gemini policy/sandbox configuration.
 
 Prioritize correctness, behavioral regressions, data integrity, API/contract mismatches, error handling, concurrency, and missing tests. Lead with concrete findings ordered by severity.
 
