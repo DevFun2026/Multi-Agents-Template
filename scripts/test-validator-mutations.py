@@ -134,6 +134,84 @@ cases: list[tuple[str, Callable[[Path], None]]] = [
             lambda s: s.replace("  - grep_search", "  - grep_search\n  - definitely_not_a_tool"),
         ),
     ),
+
+    (
+        "claude role name must match filename and mixed local/web is rejected",
+        lambda root: mutate_text(
+            root,
+            ".claude/agents/security-reviewer.md",
+            lambda s: s.replace(
+                "name: security-reviewer",
+                "name: sec-review",
+            ).replace(
+                "  - Bash",
+                "  - Bash\n  - WebFetch",
+            ),
+        ),
+    ),
+    (
+        "new Claude helper cannot mix local-read and web tools",
+        lambda root: (root / ".claude/agents/helper.md").write_text(
+            """---
+name: helper
+description: Mixed-capability helper that must be rejected.
+model: haiku
+tools:
+  - Read
+  - Grep
+  - WebFetch
+disallowedTools: Agent
+---
+
+This helper intentionally violates the local/web separation invariant.
+""",
+            encoding="utf-8",
+        ),
+    ),
+    (
+        "new Gemini helper cannot mix local-read and web tools",
+        lambda root: (root / ".gemini/agents/helper.md").write_text(
+            """---
+name: helper
+description: Mixed-capability helper that must be rejected.
+kind: local
+tools:
+  - read_file
+  - web_fetch
+model: flash
+---
+
+This helper intentionally violates the local/web separation invariant.
+""",
+            encoding="utf-8",
+        ),
+    ),
+    (
+        "new Codex role must declare web_search explicitly",
+        lambda root: (
+            (root / ".codex/agents/docs.toml").write_text(
+                """name = "docs"
+description = "Documentation helper."
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Review documentation only.
+"""
+""",
+                encoding="utf-8",
+            ),
+            mutate_text(
+                root,
+                ".codex/config.toml",
+                lambda s: s
+                + """
+[agents.docs]
+description = "Documentation helper."
+config_file = "agents/docs.toml"
+""",
+            ),
+        ),
+    ),
 ]
 
 
