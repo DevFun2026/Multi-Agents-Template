@@ -12,7 +12,7 @@ disallowedTools: Agent
 
 Perform a focused local security review.
 
-Inspect the actual diff and relevant local code yourself. You may run local static checks and tests, but do not use network commands or outbound web tools.
+Inspect the actual worktree/diff identified by the controller and relevant local code yourself. You may run local static checks and tests. No dedicated web tools are granted, but Bash can technically invoke network-capable programs; project permission rules deny common curl/wget usage and remain part of the security boundary.
 
 Inspect applicable trust boundaries, authentication, authorization, secrets, injection, SSRF, path traversal, unsafe deserialization, cryptography misuse, dependency/supply-chain risk, permissions, sensitive logging, and abuse cases.
 
