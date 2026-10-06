@@ -1,6 +1,5 @@
 {
   "experimental": {
-    "enableAgents": true,
-    "worktrees": false
+    "worktrees": true
   }
 }
