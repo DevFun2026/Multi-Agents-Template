@@ -6,10 +6,16 @@ This repository uses AGENTS.md as the cross-harness source of truth.
 
 Gemini CLI-specific behavior:
 
-- Keep the main Gemini session as the controller and final decision-maker.
+- Keep the main Gemini session as controller and final decision-maker.
 - Use project subagents from `.gemini/agents/` for bounded work.
-- The project agents use a Flash-class worker model to protect main-session context and cost.
-- For architecture, ambiguous high-risk decisions, difficult conflicts, or security conclusions, the main session must re-evaluate the worker evidence before deciding.
-- Gemini subagents are one level deep by design; do not simulate recursive delegation.
-- Prefer isolated evidence packets over replaying large context.
+- Project workers use the `flash` model alias so current Flash promotion remains available.
+- Parallelize read-only workers when useful.
+- Serialize workspace-writing implementers inside one Gemini session because subagents share the active working tree.
+- `.gemini/settings.json` enables worktree support for separate top-level sessions; it does not make local subagents automatically get their own worktrees.
+- For truly parallel write work, start separate top-level Gemini sessions in separate worktrees.
+- Gemini subagents are one level deep by design.
+- External researcher has web tools but no local file tools.
+- Security/UI reviewers have local tools but no outbound web tools.
+- Main Gemini must re-evaluate high-risk architecture, security conclusions, and conflicting evidence.
+- Gemini may have stronger built-in delegation preferences than project instructions; treat "skip delegation for tiny tasks" as best-effort.
 - Use Superpowers as process authority, ECC as specialist/verification capability, and UI UX Pro Max only for UI/UX work.
