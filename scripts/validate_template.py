@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
-import tomllib
 from pathlib import Path
 from typing import Any
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redef]
 
 try:
     import yaml
@@ -55,6 +60,105 @@ REQUIRED = [
     "scripts/bootstrap.sh",
     "scripts/verify-template.sh",
 ]
+
+CLAUDE_EXPECTED_TOOLS: dict[str, set[str]] = {
+    "explorer": {"Read", "Grep", "Glob"},
+    "researcher": {"WebSearch", "WebFetch"},
+    "implementer": {"Read", "Grep", "Glob", "Write", "Edit", "Bash"},
+    "reviewer": {"Read", "Grep", "Glob", "Bash"},
+    "security-reviewer": {"Read", "Grep", "Glob", "Bash"},
+    "uiux-reviewer": {"Read", "Grep", "Glob", "Bash"},
+}
+
+GEMINI_FRONTMATTER_KEYS = {
+    "kind",
+    "name",
+    "description",
+    "display_name",
+    "tools",
+    "mcp_servers",
+    "model",
+    "temperature",
+    "max_turns",
+    "timeout_mins",
+}
+
+GEMINI_BUILTIN_TOOLS = {
+    "glob",
+    "write_todos",
+    "write_file",
+    "google_web_search",
+    "web_fetch",
+    "replace",
+    "run_shell_command",
+    "grep_search",
+    "read_many_files",
+    "read_file",
+    "list_directory",
+    "activate_skill",
+    "ask_user",
+    "tracker_create_task",
+    "tracker_update_task",
+    "tracker_get_task",
+    "tracker_list_tasks",
+    "tracker_add_dependency",
+    "tracker_visualize",
+    "get_internal_docs",
+    "enter_plan_mode",
+    "exit_plan_mode",
+    "update_topic",
+    "complete_task",
+    "invoke_agent",
+    "read_mcp_resource",
+    "list_mcp_resources",
+}
+
+GEMINI_EXPECTED_TOOLS: dict[str, set[str]] = {
+    "explorer": {"read_file", "read_many_files", "list_directory", "glob", "grep_search"},
+    "researcher": {"google_web_search", "web_fetch"},
+    "implementer": {
+        "read_file",
+        "read_many_files",
+        "list_directory",
+        "glob",
+        "grep_search",
+        "write_file",
+        "replace",
+        "run_shell_command",
+    },
+    "reviewer": {
+        "read_file",
+        "read_many_files",
+        "list_directory",
+        "glob",
+        "grep_search",
+        "run_shell_command",
+    },
+    "security-reviewer": {
+        "read_file",
+        "read_many_files",
+        "list_directory",
+        "glob",
+        "grep_search",
+        "run_shell_command",
+    },
+    "uiux-reviewer": {
+        "read_file",
+        "read_many_files",
+        "list_directory",
+        "glob",
+        "grep_search",
+        "run_shell_command",
+    },
+}
+
+CODEX_LOCAL_ROLES = {
+    ".codex/agents/explorer.toml",
+    ".codex/agents/implementer.toml",
+    ".codex/agents/reviewer.toml",
+    ".codex/agents/security-reviewer.toml",
+    ".codex/agents/uiux-reviewer.toml",
+}
 
 errors: list[str] = []
 
@@ -126,17 +230,13 @@ def parse_frontmatter(rel: str) -> dict[str, Any]:
     text = read_text(rel)
     if not text:
         return {}
+
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         fail(f"{rel}: missing opening YAML frontmatter delimiter")
         return {}
 
-    end = None
-    for i, line in enumerate(lines[1:], start=1):
-        if line.strip() == "---":
-            end = i
-            break
-
+    end = next((i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---"), None)
     if end is None:
         fail(f"{rel}: missing closing YAML frontmatter delimiter")
         return {}
@@ -151,22 +251,100 @@ def parse_frontmatter(rel: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         fail(f"{rel}: YAML frontmatter must be a mapping")
         return {}
+
     return value
 
 
-def has_agent_disallow(value: Any) -> bool:
+def normalize_claude_tools(value: Any, rel: str) -> list[str]:
+    if value is None:
+        fail(f"{rel}: tools must be declared explicitly; omission inherits parent/all tools")
+        return []
+
     if isinstance(value, str):
-        parts = [item.strip() for item in value.split(",")]
-        return "Agent" in parts
-    if isinstance(value, list):
-        return "Agent" in value
-    return False
+        tools = [item.strip() for item in value.split(",") if item.strip()]
+    elif isinstance(value, list) and all(isinstance(item, str) for item in value):
+        tools = [item.strip() for item in value if item.strip()]
+    else:
+        fail(f"{rel}: tools must be a YAML list or comma-separated string")
+        return []
+
+    if not tools:
+        fail(f"{rel}: tools must not be empty")
+    return tools
+
+
+def normalize_disallowed_tools(value: Any, rel: str) -> list[str]:
+    if value is None:
+        fail(f"{rel}: disallowedTools must explicitly include Agent")
+        return []
+
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return [item.strip() for item in value if item.strip()]
+
+    fail(f"{rel}: disallowedTools must be a list or comma-separated string")
+    return []
+
+
+def is_valid_gemini_tool_name(name: str) -> bool:
+    if name in GEMINI_BUILTIN_TOOLS:
+        return True
+
+    if name.startswith("discovered_tool_"):
+        return True
+
+    if name == "*":
+        return True
+
+    if name == "mcp_*":
+        return True
+
+    if not name.startswith("mcp_"):
+        return False
+
+    rest = name[4:]
+    if rest.startswith("_") or "_" not in rest:
+        return False
+
+    server, tool = rest.split("_", 1)
+    slug = re.compile(r"^[a-z0-9_.:-]+$", re.IGNORECASE)
+
+    if not server or not slug.fullmatch(server):
+        return False
+    if tool == "*":
+        return True
+    if not tool or re.fullmatch(r"_*", tool):
+        return False
+    return bool(slug.fullmatch(tool))
+
+
+def normalize_gemini_tools(value: Any, rel: str) -> list[str]:
+    if value is None:
+        fail(f"{rel}: tools must be declared explicitly; omission inherits parent/all tools")
+        return []
+
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        fail(f"{rel}: Gemini tools must be a YAML list of strings")
+        return []
+
+    tools = [item.strip() for item in value if item.strip()]
+    if not tools:
+        fail(f"{rel}: tools must not be empty")
+
+    for tool in tools:
+        if not is_valid_gemini_tool_name(tool):
+            fail(f"{rel}: invalid Gemini tool name: {tool}")
+
+    return tools
 
 
 for rel in REQUIRED:
     if not (ROOT / rel).is_file():
         fail(f"missing required file: {rel}")
 
+
+# Codex
 codex = parse_toml(".codex/config.toml")
 features = codex.get("features")
 agents = codex.get("agents")
@@ -202,6 +380,15 @@ if "persistent_instructions" in codex:
 if not isinstance(codex.get("developer_instructions"), str):
     fail(".codex/config.toml: developer_instructions must be present")
 
+for rel in sorted(CODEX_LOCAL_ROLES):
+    role = parse_toml(rel)
+    if role.get("web_search") != "disabled":
+        fail(f"{rel}: local Codex role must set web_search = \"disabled\"")
+
+codex_researcher = parse_toml(".codex/agents/researcher.toml")
+if codex_researcher.get("web_search") != "live":
+    fail(".codex/agents/researcher.toml: external researcher must explicitly set web_search = \"live\"")
+
 agents_policy = read_text("AGENTS.md")
 codex_prompt = read_text("prompts/codex-session-start.md")
 if "fork_turns" not in agents_policy:
@@ -209,24 +396,53 @@ if "fork_turns" not in agents_policy:
 if "fork_turns" not in codex_prompt:
     fail("prompts/codex-session-start.md: must mention fork_turns")
 
+
+# Claude
 claude_settings = parse_json(".claude/settings.json")
 claude_env = claude_settings.get("env")
 if not isinstance(claude_env, dict) or str(claude_env.get("CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH")) != "1":
     fail(".claude/settings.json: CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH must be 1")
 
+worktree = claude_settings.get("worktree")
+if not isinstance(worktree, dict) or worktree.get("baseRef") != "head":
+    fail(".claude/settings.json: worktree.baseRef must be \"head\"")
+
+permissions = claude_settings.get("permissions")
+denies = permissions.get("deny") if isinstance(permissions, dict) else None
+if not isinstance(denies, list):
+    fail(".claude/settings.json: permissions.deny must be a list")
+else:
+    for rule in ("Bash(curl:*)", "Bash(wget:*)"):
+        if rule not in denies:
+            fail(f".claude/settings.json: permissions.deny must include {rule}")
+
 for path in sorted((ROOT / ".claude/agents").glob("*.md")):
     rel = str(path.relative_to(ROOT))
     fm = parse_frontmatter(rel)
+
     for key in ("name", "description", "model"):
         if not isinstance(fm.get(key), str) or not fm.get(key):
             fail(f"{rel}: frontmatter {key!r} must be a non-empty string")
-    if not has_agent_disallow(fm.get("disallowedTools")):
-        fail(f"{rel}: disallowedTools must include Agent to enforce one-level delegation")
+
+    name = fm.get("name")
+    tools = set(normalize_claude_tools(fm.get("tools"), rel))
+    disallowed = set(normalize_disallowed_tools(fm.get("disallowedTools"), rel))
+
+    if "Agent" not in disallowed:
+        fail(f"{rel}: disallowedTools must include Agent")
+
+    if isinstance(name, str) and name in CLAUDE_EXPECTED_TOOLS and tools != CLAUDE_EXPECTED_TOOLS[name]:
+        fail(
+            f"{rel}: tools must equal {sorted(CLAUDE_EXPECTED_TOOLS[name])}; "
+            f"got {sorted(tools)}"
+        )
 
 claude_impl = parse_frontmatter(".claude/agents/implementer.md")
 if claude_impl.get("isolation") != "worktree":
     fail(".claude/agents/implementer.md: isolation must be worktree")
 
+
+# Gemini
 gemini_settings = parse_json(".gemini/settings.json")
 experimental = gemini_settings.get("experimental")
 if not isinstance(experimental, dict) or experimental.get("worktrees") is not True:
@@ -235,36 +451,43 @@ if not isinstance(experimental, dict) or experimental.get("worktrees") is not Tr
 for path in sorted((ROOT / ".gemini/agents").glob("*.md")):
     rel = str(path.relative_to(ROOT))
     fm = parse_frontmatter(rel)
+
+    unknown_keys = set(fm) - GEMINI_FRONTMATTER_KEYS
+    if unknown_keys:
+        fail(f"{rel}: unknown Gemini frontmatter keys: {sorted(unknown_keys)}")
+
     for key in ("name", "description", "model"):
         if not isinstance(fm.get(key), str) or not fm.get(key):
             fail(f"{rel}: frontmatter {key!r} must be a non-empty string")
+
+    kind = fm.get("kind", "local")
+    if kind != "local":
+        fail(f"{rel}: kind must be local")
+
+    name = fm.get("name")
+    tools = set(normalize_gemini_tools(fm.get("tools"), rel))
+
     if fm.get("model") == "gemini-3-flash-preview":
         fail(f"{rel}: use the flash alias instead of stale gemini-3-flash-preview pin")
 
-claude_research = parse_frontmatter(".claude/agents/researcher.md")
-if any(tool in (claude_research.get("tools") or []) for tool in ("Read", "Grep", "Glob")):
-    fail(".claude/agents/researcher.md: external researcher must not combine local file reads with web tools")
+    if isinstance(name, str) and name in GEMINI_EXPECTED_TOOLS and tools != GEMINI_EXPECTED_TOOLS[name]:
+        fail(
+            f"{rel}: tools must equal {sorted(GEMINI_EXPECTED_TOOLS[name])}; "
+            f"got {sorted(tools)}"
+        )
 
-for rel in (".claude/agents/security-reviewer.md", ".claude/agents/uiux-reviewer.md"):
-    fm = parse_frontmatter(rel)
-    tools = set(fm.get("tools") or [])
-    if tools.intersection({"WebSearch", "WebFetch"}):
-        fail(f"{rel}: local reviewer must not have outbound web tools")
 
-gemini_research = parse_frontmatter(".gemini/agents/researcher.md")
-if any(tool in (gemini_research.get("tools") or []) for tool in ("read_file", "read_many_files", "glob", "grep_search")):
-    fail(".gemini/agents/researcher.md: external researcher must not combine local file reads with web tools")
-
-for rel in (".gemini/agents/security-reviewer.md", ".gemini/agents/uiux-reviewer.md"):
-    fm = parse_frontmatter(rel)
-    tools = set(fm.get("tools") or [])
-    if tools.intersection({"google_web_search", "web_fetch"}):
-        fail(f"{rel}: local reviewer must not have outbound web tools")
-
+# Shared docs/config invariants
 if "@AGENTS.md" not in read_text("CLAUDE.md"):
     fail("CLAUDE.md must import @AGENTS.md")
 if "@AGENTS.md" not in read_text("GEMINI.md"):
     fail("GEMINI.md must import @AGENTS.md")
+
+gitignore = read_text(".gitignore")
+for ignored in (".claude/worktrees/", ".gemini/worktrees/"):
+    if ignored not in gitignore:
+        fail(f".gitignore must include {ignored}")
+
 
 if errors:
     for error in errors:
