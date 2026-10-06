@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 python3 scripts/validate_template.py
 python3 scripts/test-validator-mutations.py
+python3 scripts/test-bootstrap.py
 
 bash -n scripts/bootstrap.sh
 bash -n scripts/verify-template.sh
