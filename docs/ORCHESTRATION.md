@@ -1,130 +1,68 @@
 # Orchestration Guide
 
-## Goal
+## Core rule
 
-Optimize for **quality per total token/cost**, not for maximum agent count.
+Optimize **quality per total context/cost**, not agent count.
 
-The strongest main-session model should spend its context on problem framing, architecture, synthesis, conflict resolution, verification, and final judgment.
-
-## Shared decision graph
+## Execution graph
 
 ```text
-Is the task substantial?
- |
- +-- no -> main handles it directly
- |
- +-- yes
-       |
-       +-- Can independent work packets be isolated?
-             |
-             +-- no -> main or one specialist agent
-             |
-             +-- yes -> 2-4 focused agents in parallel
-                            |
-                            +-> compact evidence/results
-                            |
-                        main synthesis
-                            |
-                    verification/review
-                            |
-                       final decision
+MAIN CONTROLLER
+  |
+  +-- independent read-only tasks -> parallel workers when useful
+  |
+  +-- workspace-writing tasks
+        |
+        +-- isolated worktrees/workspaces -> may parallelize carefully
+        |
+        +-- shared working tree -> serialize writers
+  |
+  -> review actual work product
+  -> objective verification
+  -> main synthesis/final decision
 ```
 
-## Native harness mapping
+## Codex context/model routing
 
-| Logical role | Codex | Claude Code | Gemini CLI |
-|---|---|---|---|
-| Main controller | session model | session model | session model |
-| Cheap explorer/researcher | dynamic allowed child model | Haiku project agent | Flash project agent |
-| Implementation | dynamic cheap/mid child | Sonnet project agent | Flash project agent |
-| Review | dynamic mid/strong child | Sonnet project agent | Flash project agent + main re-check when risky |
-| Architecture/final judgment | main | main | main |
-| Agent recursion | max_depth=1 | policy: one level | natively blocked for local subagents |
-
-### Codex
-
-Project roles live in `.codex/agents/`.
-
-At every spawn:
-- use a model from the CURRENT spawn allowlist;
-- explicitly set model and reasoning effort;
-- prefer clean isolated context.
-
-### Claude Code
-
-Project roles live in `.claude/agents/`.
-
-This template uses:
-- Haiku for explorer/researcher;
-- Sonnet for implementer/reviewer/security/UIUX;
-- main session for architecture and final decisions.
-
-The role files are a cost-aware default. Escalate only when the main controller decides the task warrants it.
-
-### Gemini CLI
-
-Project roles live in `.gemini/agents/`.
-
-This template uses a Flash-class model for workers. Gemini local subagents run in isolated contexts and cannot call other subagents, which matches the one-level orchestration policy.
-
-For difficult architecture, ambiguous security findings, or conflicting evidence, the main session must independently re-check the worker output.
-
-## Role selection
-
-### explorer
-
-Use when the controller does not yet know where behavior lives.
-
-Return execution path, relevant files, symbols/interfaces, likely tests, and constraints.
-
-### researcher
-
-Use when current external or documentation evidence matters.
-
-Parallel research angles can include official sources, implementation evidence, alternatives, and failure modes.
-
-### implementer
-
-Use only after scope and acceptance criteria are stable enough to avoid large rework.
-
-Give exact objective, allowed scope, contracts, tests, and definition of done.
-
-### reviewer
-
-Use after implementation or for risky design proposals. A fresh reviewer should challenge assumptions rather than defend implementation choices.
-
-### security reviewer
-
-Use for auth/authz, secrets, payments, cryptography, untrusted input, file/network access, infrastructure permissions, dependency/supply-chain changes, and sensitive data.
-
-### UI/UX reviewer
-
-Use only when visual/product interaction quality is part of the task. Persist a design system or explicit constraints before several implementers work in parallel.
-
-## Logical model tiers
+Every cost-routed Codex spawn should specify:
 
 ```text
-CHEAP  -> search, discovery, simple tests, repetitive edits
-MID    -> normal research, implementation, debugging, integration
-STRONG -> security-sensitive review, hard debugging, conflict resolution
-MAIN   -> architecture, synthesis, cross-domain judgment, final decision
+fork_turns: "none"
+model: <current allowed child model>
+reasoning_effort: <explicit effort>
 ```
 
-The logical tier is stable even when provider model names change.
+A small integer may be used instead of `"none"` when recent context is necessary.
 
-## Context packet
+The order matters conceptually: first choose a bounded fork, then choose the cheaper model/effort. Full inherited history defeats the intended isolation/cost mechanism.
+
+## Claude routing
+
+- read-only explorer/research -> Haiku-class
+- implement/review -> Sonnet-class
+- main -> architecture/final judgment
+
+Claude implementers use worktree isolation. Recursive project-agent spawning is blocked by both project env depth and `disallowedTools: Agent`.
+
+## Gemini routing
+
+All template workers use `model: flash`.
+
+Conversation context is isolated per local subagent, but working-tree writes are not. Serialize Gemini implementers in one session. Use separate top-level worktree sessions for parallel writers.
+
+## Task packet
 
 ```text
 Objective:
 ...
 
 Relevant context:
-- ...
+- minimal, non-sensitive context only
 
 Files/resources:
 - ...
 
-Constraints:
+Constraints/contracts:
 - ...
 
 Acceptance criteria:
@@ -133,8 +71,6 @@ Acceptance criteria:
 Expected output:
 ...
 ```
-
-Avoid forwarding the complete parent transcript.
 
 ## Evidence packet
 
@@ -159,8 +95,32 @@ Recommendation
 - ...
 ```
 
+## Review contract
+
+A fresh reviewer should inspect the work product itself.
+
+Preferred inputs:
+
+- working tree / worktree access;
+- exact base/head refs when applicable;
+- acceptance criteria.
+
+Do not make the reviewer depend solely on an implementer's prose summary.
+
+## External research contract
+
+External researchers get web access but no repository read tools.
+
+The controller provides only enough non-sensitive context to phrase the research question. Local evidence comes from explorer/reviewer roles.
+
 ## Escalation
 
-Escalate when evidence conflicts, the cheaper worker is insufficient, security/data integrity is involved, architecture spans several subsystems, or the decision is expensive to reverse.
+Escalate when:
+
+- evidence conflicts;
+- a cheaper worker is insufficient;
+- security/data integrity is involved;
+- architecture spans several subsystems;
+- the decision is expensive to reverse.
 
 Do not escalate merely because a task is long.
