@@ -8,14 +8,15 @@ tools:
   - list_directory
   - glob
   - grep_search
-  - google_web_search
-  - web_fetch
-model: gemini-3-flash-preview
+  - run_shell_command
+model: flash
 temperature: 0.1
 max_turns: 24
 ---
 
-Perform a focused security review.
+Perform a focused local security review.
+
+Inspect the actual diff and relevant code yourself. You may run local static checks and tests, but do not use network commands or outbound web tools.
 
 Inspect applicable trust boundaries, authentication, authorization, secrets, injection, SSRF, path traversal, unsafe deserialization, cryptography misuse, supply-chain risk, permissions, sensitive logging, and abuse cases.
 
