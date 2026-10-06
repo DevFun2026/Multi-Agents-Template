@@ -1,3 +1,5 @@
+name = "security-reviewer"
+description = "Read-only security reviewer focused on trust boundaries, secrets, auth, input, dependencies, and permissions."
 web_search = "disabled"
 sandbox_mode = "read-only"
 
