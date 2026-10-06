@@ -69,19 +69,19 @@ cd my-project
 Inspect environment/integration plans without changing anything:
 
 ```bash
-./scripts/bootstrap.sh
-./scripts/bootstrap.sh codex
-./scripts/bootstrap.sh claude
-./scripts/bootstrap.sh gemini
-./scripts/bootstrap.sh all
+bash scripts/bootstrap.sh
+bash scripts/bootstrap.sh codex
+bash scripts/bootstrap.sh claude
+bash scripts/bootstrap.sh gemini
+bash scripts/bootstrap.sh all
 ```
 
 Install **one** harness at a time:
 
 ```bash
-./scripts/bootstrap.sh --install codex
-./scripts/bootstrap.sh --install claude
-./scripts/bootstrap.sh --install gemini
+bash scripts/bootstrap.sh --install codex
+bash scripts/bootstrap.sh --install claude
+bash scripts/bootstrap.sh --install gemini
 ```
 
 `--install all` is intentionally rejected. Installing all three in one command makes third-party changes harder to inspect and can cause config collisions.
@@ -159,7 +159,7 @@ python3 -m pip install -r requirements-dev.txt
 Run:
 
 ```bash
-./scripts/verify-template.sh
+bash scripts/verify-template.sh
 ```
 
 Validation now:
