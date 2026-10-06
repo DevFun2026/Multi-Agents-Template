@@ -1,0 +1,8 @@
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Review UI/UX against the project's persisted design system and actual product requirements.
+Check visual consistency, hierarchy, typography, spacing, responsive behavior, keyboard access, semantic structure, focus states, contrast, reduced motion, resilient text layout, loading/error/empty states, and interaction clarity.
+Use UI UX Pro Max when available and relevant.
+Report concrete issues with exact components/files and acceptance criteria for fixes.
+"""
