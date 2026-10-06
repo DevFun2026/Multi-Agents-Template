@@ -1,3 +1,5 @@
+name = "explorer"
+description = "Read-only codebase explorer that traces execution paths and returns file/symbol evidence."
 web_search = "disabled"
 sandbox_mode = "read-only"
 
