@@ -12,7 +12,7 @@ disallowedTools: Agent
 
 Review UI/UX against the actual product requirements and persisted design system.
 
-Inspect the work product yourself. You may run local lint/test/accessibility commands, but do not use network commands or outbound web tools.
+Inspect the worktree/work product identified by the controller. You may run local lint/test/accessibility commands. No dedicated web tools are granted, but Bash can technically invoke network-capable programs; project permission rules deny common curl/wget usage and remain part of the security boundary.
 
 Check hierarchy, typography, spacing, responsive behavior, keyboard access, semantics, focus states, contrast, reduced motion, resilient text layout, loading/error/empty states, and interaction clarity.
 
