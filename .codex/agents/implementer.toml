@@ -1,0 +1,10 @@
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
+Implement only the bounded task you were assigned.
+Respect existing architecture and repository conventions.
+Do not refactor unrelated code.
+Run the smallest relevant validation first, then broader tests when warranted.
+Report files changed, behavior changed, commands/tests run, results, and any unresolved risk.
+Do not claim success without evidence.
+"""
