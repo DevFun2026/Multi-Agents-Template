@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Agents Template — System Architecture & Orchestration</title>
+<meta name="description" content="Production-grade multi-agent architecture for Codex, Claude Code, and Gemini CLI. Cost-routed workers, single-level orchestration, and network-hardened security boundaries.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   DESIGN SYSTEM: Modern Engineering Architecture (Linear & Vercel Inspired)
+   Precision surfaces, subtle depth, high legibility, zero loud gradients
+   ========================================================================== */
+:root {
+  --bg-base: #080B11;
+  --bg-surface: #0E131F;
+  --bg-surface-elevated: #141B2D;
+  --bg-surface-hover: #1A233A;
+  --bg-code: #06080D;
+  
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-active: rgba(56, 189, 248, 0.5);
+
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  
+  --accent-cyan: #38BDF8;
+  --accent-emerald: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-rose: #F43F5E;
+  --accent-indigo: #818CF8;
+  
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+  
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --shadow-active: 0 8px 30px -4px rgba(56, 189, 248, 0.15), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --nav-height: 64px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-height) + 24px);
+  color-scheme: dark;
+}
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center top;
+}
+
+/* Accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
+}
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 20px;
+  background: var(--accent-cyan);
+  color: #000;
+  padding: 8px 16px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  z-index: 9999;
+  transition: top var(--transition);
+}
+.skip-link:focus { top: 16px; }
+
+/* ---------------- Navbar (Zero unwanted scrollbars) ---------------- */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-height);
+  background: rgba(8, 11, 17, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.nav-container {
+  max-width: 1240px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-cyan);
+}
+.brand-name {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-pill);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+}
+.nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.btn-quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-decoration: none;
+}
+.btn-quick:hover {
+  background: var(--bg-surface-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ---------------- Layout & Typography ---------------- */
+main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 48px 24px 100px;
+}
+section {
+  padding-top: 72px;
+}
+.section-header {
+  margin-bottom: 28px;
+}
+.section-tag {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-tag::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.section-title {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+.section-desc {
+  color: var(--text-secondary);
+  font-size: 1.02rem;
+  max-width: 760px;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+/* ---------------- Hero Section ---------------- */
+.hero {
+  padding-top: 36px;
+  padding-bottom: 24px;
+}
+.hero-content {
+  max-width: 860px;
+}
+.hero-badge-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.badge b { color: var(--text-primary); }
+.badge.glow-cyan {
+  border-color: rgba(56, 189, 248, 0.3);
+  color: var(--accent-cyan);
+}
+
+.hero-title {
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  color: #FFFFFF;
+}
+.hero-title span.highlight {
+  color: var(--accent-cyan);
+}
+.hero-lead {
+  font-size: 1.15rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-top: 20px;
+  max-width: 740px;
+}
+
+/* Metric Cards */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 36px;
+}
+.metric-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition);
+}
+.metric-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+.metric-val {
+  font-family: var(--font-mono);
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #FFFFFF;
+  line-height: 1.1;
+}
+.metric-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+.metric-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---------------- Bento Architecture Highlights ---------------- */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 18px;
+  margin-top: 28px;
+}
+.bento-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition);
+}
+.bento-card:hover {
+  border-color: var(--border-strong);
+}
+.col-8 { grid-column: span 8; }
+.col-4 { grid-column: span 4; }
+.col-6 { grid-column: span 6; }
+.col-12 { grid-column: span 12; }
+
+.bento-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: var(--accent-cyan);
+}
+.bento-card h3 {
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-bottom: 8px;
+}
+.bento-card p {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+/* ---------------- Interactive Architecture Canvas ---------------- */
+.canvas-wrapper {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  margin-top: 28px;
+  box-shadow: var(--shadow-card);
+}
+.canvas-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.harness-selector {
+  display: inline-flex;
+  background: var(--bg-surface-elevated);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+}
+.harness-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.harness-btn:hover { color: var(--text-primary); }
+.harness-btn.active {
+  background: var(--bg-base);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.diagram-container {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  margin-top: 28px;
+}
+
+/* Master node */
+.controller-node {
+  background: var(--bg-surface-elevated);
+  border: 1.5px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.controller-node:hover, .controller-node.selected {
+  background: var(--bg-surface-hover);
+  box-shadow: var(--shadow-active);
+}
+.node-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.node-title {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.node-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.diagram-spine {
+  width: 2px;
+  height: 32px;
+  background: var(--border-strong);
+  margin: 0 auto;
+}
+
+/* Workers grid */
+.workers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.worker-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.worker-card:hover, .worker-card.selected {
+  border-color: var(--accent-cyan);
+  background: var(--bg-surface-hover);
+  transform: translateY(-2px);
+}
+.worker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.worker-name {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.worker-pill {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.pill-ro { background: rgba(56, 189, 248, 0.1); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.2); }
+.pill-rw { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.2); }
+.pill-net { background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.2); }
+
+.worker-brief {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.worker-dynamic-model {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Detail Inspector Sidebar */
+.inspector-panel {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.inspector-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+}
+.inspector-title {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.inspector-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.inspector-section-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.inspector-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag-item {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+.inspector-box {
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  margin-top: 16px;
+  white-space: pre-wrap;
+}
+
+/* ---------------- Interactive Tabs & Code Snippets ---------------- */
+.tabs-component {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  margin-top: 28px;
+}
+.tabs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 24px;
+  background: var(--bg-surface-elevated);
+}
+.tab-buttons {
+  display: flex;
+  gap: 8px;
+}
+.tab-nav-btn {
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 18px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+}
+.tab-nav-btn:hover { color: var(--text-primary); }
+.tab-nav-btn.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-cyan);
+}
+.tab-panel {
+  padding: 28px;
+  display: none;
+}
+.tab-panel.active { display: block; }
+
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 768px) {
+  .spec-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.spec-item {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.spec-key {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+.spec-val {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.spec-val code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-cyan);
+}
+
+/* Code Block with Copy Button */
+.code-wrapper {
+  position: relative;
+  background: var(--bg-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.btn-copy {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition);
+}
+.btn-copy:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+pre {
+  padding: 18px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #CBD5E1;
+}
+
+/* ---------------- Roles Matrix Table ---------------- */
+.table-wrapper {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  margin-top: 28px;
+}
+.table-controls {
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-surface-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.search-input {
+  background: var(--bg-base);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  width: 260px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.search-input:focus { border-color: var(--accent-cyan); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+th {
+  background: var(--bg-surface-elevated);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+.role-badge {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+.tool-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin: 2px;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.status-yes { color: var(--accent-emerald); }
+.status-no { color: var(--text-muted); }
+
+/* ---------------- Workflow Pipeline ---------------- */
+.pipeline-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+.step-node {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  position: relative;
+  transition: all var(--transition);
+}
+.step-node:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+.step-node.main-step {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.03);
+}
+.step-number {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.step-node.main-step .step-number {
+  color: var(--accent-cyan);
+}
+.step-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+.step-owner {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ---------------- Footer ---------------- */
+footer {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 60px 24px 80px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+.footer-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.footer-links a:hover { color: var(--text-primary); }
+
+/* Responsive Adjustments */
+@media (max-width: 980px) {
+  .diagram-container { grid-template-columns: 1fr; }
+  .col-8, .col-4, .col-6 { grid-column: span 12; }
+  .workers-grid { grid-template-columns: repeat(2, 1fr); }
+  .nav-links { display: none; } /* Mobile clean */
+}
+@media (max-width: 640px) {
+  .workers-grid { grid-template-columns: 1fr; }
+  .hero-title { font-size: 2.2rem; }
+  .table-controls { flex-direction: column; align-items: stretch; }
+  .search-input { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<!-- Navigation Bar -->
+<header class="navbar">
+  <div class="nav-container">
+    <a href="#overview" class="brand-group">
+      <div class="brand-logo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <span class="brand-name">Multi-Agents Template</span>
+      <span class="brand-tag">v1.0</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#overview" class="nav-link">Overview</a></li>
+      <li><a href="#architecture" class="nav-link">Topology</a></li>
+      <li><a href="#harnesses" class="nav-link">Harnesses</a></li>
+      <li><a href="#matrix" class="nav-link">Role Matrix</a></li>
+      <li><a href="#workflow" class="nav-link">Workflow</a></li>
+      <li><a href="#security" class="nav-link">Security</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="https://github.com/DevFun2026/Multi-Agents-Template" target="_blank" rel="noopener" class="btn-quick">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- HERO SECTION -->
+  <section class="hero" id="overview">
+    <div class="hero-content">
+      <div class="hero-badge-strip">
+        <span class="badge glow-cyan"><b>AGENTS.md</b> Unified Ground Truth</span>
+        <span class="badge"><b>max_depth = 1</b> Strict Isolation</span>
+        <span class="badge">Parallel Read · Serial Write</span>
+      </div>
+      <h1 class="hero-title">
+        One policy, three harnesses.<br>
+        <span class="highlight">One decision controller.</span>
+      </h1>
+      <p class="hero-lead">
+        A production-grade multi-agent architecture built for cost-aware research and development across 
+        <b>Codex</b>, <b>Claude Code</b>, and <b>Gemini CLI</b>. The main session retains synthesis, high-risk security 
+        boundaries, and architecture decisions; bounded workers handle mechanical execution.
+      </p>
+    </div>
+
+    <!-- Quick Metrics -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-val">3</div>
+        <div class="metric-label">Native Harnesses</div>
+        <div class="metric-sub">Codex, Claude, Gemini CLI</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">6</div>
+        <div class="metric-label">Specialist Workers</div>
+        <div class="metric-sub">Single-depth delegation</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">0</div>
+        <div class="metric-label">Recursive Fan-out</div>
+        <div class="metric-sub">Deterministic token budget</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">46</div>
+        <div class="metric-label">Policy Invariants</div>
+        <div class="metric-sub">28 deny / 18 allow validated</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BENTO ARCHITECTURE HIGHLIGHTS -->
+  <section id="highlights">
+    <div class="section-header">
+      <div class="section-tag">Core Architecture</div>
+      <h2 class="section-title">Engineered for token & execution discipline</h2>
+      <p class="section-desc">Key system invariants enforced across all supported agent runtimes.</p>
+    </div>
+
+    <div class="bento-grid">
+      <!-- Bento 1 -->
+      <div class="bento-card col-8">
+        <div class="bento-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+        </div>
+        <h3>Single-Level Delegation Authority</h3>
+        <p>
+          Orchestration is strictly bounded to a single tier (<code style="color:var(--accent-cyan)">max_depth = 1</code>). Subagents are forbidden from recursively spawning child workers (<code style="color:var(--accent-cyan)">disallowedTools: Agent</code>). The Main Controller retains sole ownership of architecture, conflict resolution, and final verification.
+        </p>
+      </div>
+
+      <!-- Bento 2 -->
+      <div class="bento-card col-4">
+        <div class="bento-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Exfiltration Hardening</h3>
+        <p>
+          Local codebase discovery is strictly decoupled from external web retrieval. No role combines shell commands with unconstrained network tools.
+        </p>
+      </div>
+
+      <!-- Bento 3 -->
+      <div class="bento-card col-4">
+        <div class="bento-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+        </div>
+        <h3>Concurrency Discipline</h3>
+        <p>
+          Read-only exploration runs in parallel. Workspace implementers run serially unless physical git worktree isolation is active.
+        </p>
+      </div>
+
+      <!-- Bento 4 -->
+      <div class="bento-card col-8">
+        <div class="bento-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </div>
+        <h3>Minimal Task Packets</h3>
+        <p>
+          Workers never inherit parent conversational history or full transcripts. The controller passes a compact packet: bounded objective, exact file paths, contract specifications, and verification criteria.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE ARCHITECTURE CANVAS -->
+  <section id="architecture">
+    <div class="section-header">
+      <div class="section-tag">Interactive Topology</div>
+      <h2 class="section-title">Live Architecture & Agent Inspector</h2>
+      <p class="section-desc">Click any node in the topology to inspect its runtime contracts, tool permissions, and harness routing.</p>
+    </div>
+
+    <div class="canvas-wrapper">
+      <div class="canvas-controls">
+        <span style="font-size:0.88rem; font-weight:600; color:var(--text-secondary)">Active Runtime Adapter:</span>
+        <div class="harness-selector" role="group" aria-label="Runtime Harness Switcher">
+          <button class="harness-btn active" data-harness="claude">Claude Code</button>
+          <button class="harness-btn" data-harness="codex">Codex</button>
+          <button class="harness-btn" data-harness="gemini">Gemini CLI</button>
+        </div>
+      </div>
+
+      <div class="diagram-container">
+        <!-- Visual Diagram -->
+        <div class="diagram-visual">
+          <!-- Controller -->
+          <div class="controller-node selected" data-node="controller">
+            <div class="node-title-row">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span class="node-title">MAIN CONTROLLER</span>
+            </div>
+            <div class="node-subtitle">Architecture · Synthesis · Verification · Final Judgment</div>
+          </div>
+
+          <div class="diagram-spine"></div>
+
+          <!-- 6 Workers -->
+          <div class="workers-grid">
+            <div class="worker-card" data-node="explorer">
+              <div class="worker-header">
+                <span class="worker-name">explorer</span>
+                <span class="worker-pill pill-ro">READ-ONLY</span>
+              </div>
+              <div class="worker-brief">Fast codebase discovery, symbol tracking, execution paths.</div>
+              <div class="worker-dynamic-model">Model: <span class="dyn-model">haiku</span></div>
+            </div>
+
+            <div class="worker-card" data-node="researcher">
+              <div class="worker-header">
+                <span class="worker-name">researcher</span>
+                <span class="worker-pill pill-net">WEB-ONLY</span>
+              </div>
+              <div class="worker-brief">External docs, primary sources, comparative benchmarks.</div>
+              <div class="worker-dynamic-model">Model: <span class="dyn-model">haiku</span></div>
+            </div>
+
+            <div class="worker-card" data-node="implementer">
+              <div class="worker-header">
+                <span class="worker-name">implementer</span>
+                <span class="worker-pill pill-rw">WORKSPACE-WRITE</span>
+              </div>
+              <div class="worker-brief">Bounded feature/bugfix coding within strict contracts.</div>
+              <div class="worker-dynamic-model">Model: <span class="dyn-model">sonnet</span></div>
+            </div>
+
+            <div class="worker-card" data-node="reviewer">
+              <div class="worker-header">
+                <span class="worker-name">reviewer</span>
+                <span class="worker-pill pill-ro">READ-ONLY</span>
+              </div>
+              <div class="worker-brief">Correctness, regression checks, maintainability, tests.</div>
+              <div class="worker-dynamic-model">Model: <span class="dyn-model">sonnet</span></div>
+            </div>
+
+            <div class="worker-card" data-node="security-reviewer">
+              <div class="worker-header">
+                <span class="worker-name">security-reviewer</span>
+                <span class="worker-pill pill-ro">READ-ONLY</span>
+              </div>
+              <div class="worker-brief">Trust boundaries, secrets, permissions, dependency risk.</div>
+              <div class="worker-dynamic-model">Model: <span class="dyn-model">sonnet</span></div>
+            </div>
+
+            <div class="worker-card" data-node="uiux-reviewer">
+              <div class="worker-header">
+                <span class="worker-name">uiux-reviewer</span>
+                <span class="worker-pill pill-ro">READ-ONLY</span>
+              </div>
+              <div class="worker-brief">Accessibility, responsiveness, design tokens, interaction.</div>
+              <div class="worker-dynamic-model">Model: <span class="dyn-model">sonnet</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inspector Panel -->
+        <div class="inspector-panel" id="inspector">
+          <span class="inspector-badge" id="insp-badge">SYSTEM CONTROLLER</span>
+          <h4 class="inspector-title" id="insp-title">MAIN CONTROLLER</h4>
+          <p class="inspector-desc" id="insp-desc">
+            The top-level model session in Codex, Claude Code, or Gemini CLI. Holds full decision authority, defines requirements, reconciles contradictory evidence from workers, and enforces final verification.
+          </p>
+
+          <div class="inspector-section-label">Permitted Capabilities</div>
+          <div class="inspector-tags" id="insp-caps">
+            <span class="tag-item">Full Toolset</span>
+            <span class="tag-item">Architecture Authority</span>
+            <span class="tag-item">Subagent Dispatch</span>
+            <span class="tag-item">Security Validation</span>
+          </div>
+
+          <div class="inspector-section-label">Harness Routing Rule</div>
+          <div class="inspector-box" id="insp-rule">Never delegate merely to save tokens. Keep synthesis and final judgments in the main session.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HARNESS ADAPTERS SPECIFICATION -->
+  <section id="harnesses">
+    <div class="section-header">
+      <div class="section-tag">Platform Adapters</div>
+      <h2 class="section-title">Native Harness Implementations</h2>
+      <p class="section-desc">Zero vendor lock-in. The same AGENTS.md policy adapts cleanly to each assistant's configuration spec.</p>
+    </div>
+
+    <div class="tabs-component">
+      <div class="tabs-header">
+        <div class="tab-buttons" role="tablist">
+          <button class="tab-nav-btn active" role="tab" data-tab="tab-claude">Claude Code</button>
+          <button class="tab-nav-btn" role="tab" data-tab="tab-codex">Codex</button>
+          <button class="tab-nav-btn" role="tab" data-tab="tab-gemini">Gemini CLI</button>
+        </div>
+      </div>
+
+      <!-- Claude Panel -->
+      <div class="tab-panel active" id="tab-claude" role="tabpanel">
+        <div class="spec-grid">
+          <div class="spec-item">
+            <div class="spec-key">Agent Model Allocation</div>
+            <div class="spec-val">Haiku (Explore/Research) · Sonnet (Implement/Review)</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Implementer Isolation</div>
+            <div class="spec-val"><code>isolation: worktree</code> (baseRef: <code>head</code>)</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Subagent Depth Limit</div>
+            <div class="spec-val"><code>CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH = 1</code></div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Network Policy Deny</div>
+            <div class="spec-val"><code>Bash(curl:*)</code> · <code>Bash(wget:*)</code></div>
+          </div>
+        </div>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span>.claude/agents/implementer.md</span>
+            <button class="btn-copy" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre>---
+name: implementer
+description: Bounded implementation worker for tasks with clear scope and contracts.
+model: sonnet
+isolation: worktree
+tools:
+  - Read
+  - Grep
+  - Glob
+  - Write
+  - Edit
+  - Bash
+disallowedTools: Agent
+---
+Implement only the task assigned by the controller. All edits stay within the worktree.
+Report the exact worktree path plus base/head refs to the controller for fresh review.</pre>
+        </div>
+      </div>
+
+      <!-- Codex Panel -->
+      <div class="tab-panel" id="tab-codex" role="tabpanel">
+        <div class="spec-grid">
+          <div class="spec-item">
+            <div class="spec-key">Spawn Protocol</div>
+            <div class="spec-val"><code>fork_turns: "none"</code> (isolated context)</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Model Selection</div>
+            <div class="spec-val">Explicitly picked per-spawn from current allowlist</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Multi-Agent Limits</div>
+            <div class="spec-val"><code>max_threads = 4</code> · <code>max_depth = 1</code></div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">CI Invariant Marker</div>
+            <div class="spec-val"><code>MATCFG</code> asserted via <code>codex debug prompt-input</code></div>
+          </div>
+        </div>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span>.codex/config.toml</span>
+            <button class="btn-copy" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre>approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+developer_instructions = "MATCFG. Follow repository AGENTS.md. For every child spawn use fork_turns = \"none\" before setting a cheaper model and reasoning effort."
+
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1</pre>
+        </div>
+      </div>
+
+      <!-- Gemini Panel -->
+      <div class="tab-panel" id="tab-gemini" role="tabpanel">
+        <div class="spec-grid">
+          <div class="spec-item">
+            <div class="spec-key">Agent Model Alias</div>
+            <div class="spec-val"><code>model: flash</code> (avoids stale preview models)</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Working Tree Sharing</div>
+            <div class="spec-val">Subagents share working tree → Implementers serialized</div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">True Parallel Writes</div>
+            <div class="spec-val">Separate top-level sessions + <code>experimental.worktrees</code></div>
+          </div>
+          <div class="spec-item">
+            <div class="spec-key">Reviewer Network Guard</div>
+            <div class="spec-val"><code>~/.gemini/policies/reviewer-network-deny.toml</code></div>
+          </div>
+        </div>
+
+        <div class="code-wrapper">
+          <div class="code-header">
+            <span>.gemini/agents/reviewer.md</span>
+            <button class="btn-copy" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre>---
+name: reviewer
+description: Read-only correctness, regression, and contract reviewer.
+kind: local
+tools:
+  - read_file
+  - read_many_files
+  - list_directory
+  - glob
+  - grep_search
+  - run_shell_command
+model: flash
+temperature: 0.1
+max_turns: 20
+---
+Inspect the actual diff with read-only commands. No dedicated web tools are granted.</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROLE CAPABILITY MATRIX TABLE -->
+  <section id="matrix">
+    <div class="section-header">
+      <div class="section-tag">Capability Matrix</div>
+      <h2 class="section-title">Agent Roles × Tool Entitlements</h2>
+      <p class="section-desc">Search and filter exact permissions and tool grants across all 6 predefined roles.</p>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="table-controls">
+        <input type="text" id="role-search" class="search-input" placeholder="Filter roles (e.g. reviewer, write)..." aria-label="Filter roles">
+        <div style="font-size:0.82rem; color:var(--text-muted)">6 Specialized Roles Defined</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="matrix-table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Claude Tools</th>
+              <th>Gemini Tools</th>
+              <th>Codex Sandbox</th>
+              <th>Web Fetch</th>
+              <th>File Write</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="role-badge">explorer</td>
+              <td><span class="tool-tag">Read</span> <span class="tool-tag">Grep</span> <span class="tool-tag">Glob</span></td>
+              <td><span class="tool-tag">read_file</span> <span class="tool-tag">glob</span> <span class="tool-tag">grep_search</span></td>
+              <td><code>read-only</code></td>
+              <td><span class="status-pill status-no">No</span></td>
+              <td><span class="status-pill status-no">No</span></td>
+            </tr>
+            <tr>
+              <td class="role-badge">researcher</td>
+              <td><span class="tool-tag">WebSearch</span> <span class="tool-tag">WebFetch</span></td>
+              <td><span class="tool-tag">google_web_search</span> <span class="tool-tag">web_fetch</span></td>
+              <td><code>read-only (live web)</code></td>
+              <td><span class="status-pill status-yes">Yes</span></td>
+              <td><span class="status-pill status-no">No</span></td>
+            </tr>
+            <tr>
+              <td class="role-badge">implementer</td>
+              <td><span class="tool-tag">Read</span> <span class="tool-tag">Write</span> <span class="tool-tag">Edit</span> <span class="tool-tag">Bash</span></td>
+              <td><span class="tool-tag">write_file</span> <span class="tool-tag">replace</span> <span class="tool-tag">run_shell</span></td>
+              <td><code>workspace-write</code></td>
+              <td><span class="status-pill status-no">No</span></td>
+              <td><span class="status-pill status-yes">Yes (worktree)</span></td>
+            </tr>
+            <tr>
+              <td class="role-badge">reviewer</td>
+              <td><span class="tool-tag">Read</span> <span class="tool-tag">Grep</span> <span class="tool-tag">Glob</span> <span class="tool-tag">Bash</span></td>
+              <td><span class="tool-tag">read_file</span> <span class="tool-tag">grep</span> <span class="tool-tag">run_shell</span></td>
+              <td><code>read-only</code></td>
+              <td><span class="status-pill status-no">No</span></td>
+              <td><span class="status-pill status-no">No</span></td>
+            </tr>
+            <tr>
+              <td class="role-badge">security-reviewer</td>
+              <td><span class="tool-tag">Read</span> <span class="tool-tag">Grep</span> <span class="tool-tag">Glob</span> <span class="tool-tag">Bash</span></td>
+              <td><span class="tool-tag">read_file</span> <span class="tool-tag">grep</span> <span class="tool-tag">run_shell</span></td>
+              <td><code>read-only</code></td>
+              <td><span class="status-pill status-no">No</span></td>
+              <td><span class="status-pill status-no">No</span></td>
+            </tr>
+            <tr>
+              <td class="role-badge">uiux-reviewer</td>
+              <td><span class="tool-tag">Read</span> <span class="tool-tag">Grep</span> <span class="tool-tag">Glob</span> <span class="tool-tag">Bash</span></td>
+              <td><span class="tool-tag">read_file</span> <span class="tool-tag">grep</span> <span class="tool-tag">run_shell</span></td>
+              <td><code>read-only</code></td>
+              <td><span class="status-pill status-no">No</span></td>
+              <td><span class="status-pill status-no">No</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORKFLOW PIPELINE -->
+  <section id="workflow">
+    <div class="section-header">
+      <div class="section-tag">Execution Lifecycle</div>
+      <h2 class="section-title">Standard Development Pipeline</h2>
+      <p class="section-desc">Steps highlighted in blue remain with the Main Controller; bounded steps are delegated.</p>
+    </div>
+
+    <div class="pipeline-steps">
+      <div class="step-node">
+        <div class="step-number">01</div>
+        <div class="step-name">Requirements</div>
+        <div class="step-owner">User Prompt</div>
+      </div>
+      <div class="step-node">
+        <div class="step-number">02</div>
+        <div class="step-name">Clarify & Plan</div>
+        <div class="step-owner">Superpowers</div>
+      </div>
+      <div class="step-node">
+        <div class="step-number">03</div>
+        <div class="step-name">Codebase Trace</div>
+        <div class="step-owner">explorer (Parallel)</div>
+      </div>
+      <div class="step-node main-step">
+        <div class="step-number">04 · CORE</div>
+        <div class="step-name">Architecture</div>
+        <div class="step-owner">Main Controller</div>
+      </div>
+      <div class="step-node main-step">
+        <div class="step-number">05 · CORE</div>
+        <div class="step-name">Decompose</div>
+        <div class="step-owner">Main Controller</div>
+      </div>
+      <div class="step-node">
+        <div class="step-number">06</div>
+        <div class="step-name">Implementation</div>
+        <div class="step-owner">implementer (Serial)</div>
+      </div>
+      <div class="step-node">
+        <div class="step-number">07</div>
+        <div class="step-name">Code Review</div>
+        <div class="step-owner">reviewer (Fresh)</div>
+      </div>
+      <div class="step-node">
+        <div class="step-number">08</div>
+        <div class="step-name">Verification</div>
+        <div class="step-owner">ECC / Test Runner</div>
+      </div>
+      <div class="step-node main-step">
+        <div class="step-number">09 · CORE</div>
+        <div class="step-name">Final Judgment</div>
+        <div class="step-owner">Main Controller</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECURITY & GUARDRAILS -->
+  <section id="security">
+    <div class="section-header">
+      <div class="section-tag">Security & Guardrails</div>
+      <h2 class="section-title">Exfiltration & Network Defense</h2>
+      <p class="section-desc">Command-position denial policies and automated validation gates.</p>
+    </div>
+
+    <div class="bento-grid">
+      <div class="bento-card col-4">
+        <h3>Command-Position Rules</h3>
+        <p>
+          Denies <code>curl</code> and <code>wget</code> prefixes directly, in quotes, after path prefixes, after up to 2 <code>VAR=val</code> assignments, after <code>env</code>, and wrappers like <code>sudo</code>, <code>xargs</code>, and <code>timeout</code>.
+        </p>
+      </div>
+      <div class="bento-card col-4">
+        <h3>Zero False Positives</h3>
+        <p>
+          Code inspections such as <code>grep -r curl src/</code> or <code>rg wget scripts/</code> are guaranteed not to be denied, allowing reviewers full static analysis access.
+        </p>
+      </div>
+      <div class="bento-card col-4">
+        <h3>Engine Verification</h3>
+        <p>
+          Validated by <code>scripts/test-gemini-policy.mjs</code> against the real Gemini CLI 0.62.0 policy loader in both standard and YOLO execution modes.
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer>
+  <div>
+    <strong>Multi-Agents Template</strong> — Open source multi-harness architecture.
+  </div>
+  <div class="footer-links">
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Topology</a>
+    <a href="#harnesses">Harnesses</a>
+    <a href="#matrix">Matrix</a>
+    <a href="#workflow">Workflow</a>
+    <a href="#security">Security</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template">GitHub Repository</a>
+  </div>
+</footer>
+
+<!-- Interactive Scripts -->
+<script>
+// 1. Data Dictionary for Interactive Topology Canvas
+const nodeData = {
+  controller: {
+    badge: "SYSTEM CONTROLLER",
+    title: "MAIN CONTROLLER",
+    desc: "The primary agent session in Codex, Claude Code, or Gemini CLI. Holds sole decision authority, defines requirements, decomposes tasks, reconciles conflicting worker findings, and approves final verification.",
+    caps: ["Full Toolset", "Architecture Authority", "Single-Depth Dispatch", "Final Review Approval"],
+    rule: "Never delegate merely to save tokens. Keep synthesis and final judgments in the main session."
+  },
+  explorer: {
+    badge: "READ-ONLY WORKER",
+    title: "explorer",
+    desc: "Fast, read-only codebase navigator. Traces execution flows, maps symbol references, and locates relevant unit/integration tests before changes begin.",
+    caps: ["Read Files", "Grep / Regex Search", "Directory Listing", "No Web Access", "No File Write"],
+    rule: "May run concurrently in parallel with other read-only workers."
+  },
+  researcher: {
+    badge: "WEB RESEARCH WORKER",
+    title: "researcher",
+    desc: "Dedicated external documentation and technical research worker. Pulls primary sources, official docs, and comparative benchmarks. Never inspects local repository files.",
+    caps: ["Web Search", "Web Fetch", "No Local File Read", "No Local Shell Access"],
+    rule: "Isolated external retrieval. Treats all downloaded web content as untrusted evidence."
+  },
+  implementer: {
+    badge: "WORKSPACE WRITE WORKER",
+    title: "implementer",
+    desc: "Bounded code implementer. Takes concrete task packets, edits code, and executes targeted local tests. Isolated in a dedicated git worktree on Claude Code.",
+    caps: ["File Write", "String Replacement", "Shell Execution", "Local Test Runner"],
+    rule: "Must run serially in shared working trees. Parallel execution requires separate git worktrees."
+  },
+  reviewer: {
+    badge: "READ-ONLY WORKER",
+    title: "reviewer",
+    desc: "Post-implementation correctness, contract adherence, regression, and missing-test reviewer. Reads actual diffs and worktree checkouts.",
+    caps: ["Read Files", "Diff Inspection", "Test Execution", "No Source Editing"],
+    rule: "Must be a fresh worker that did not author the implementation code."
+  },
+  "security-reviewer": {
+    badge: "SECURITY SPECIALIST",
+    title: "security-reviewer",
+    desc: "Audits trust boundaries, auth/authz contracts, secrets handling, input validation, cryptography, network/filesystem boundaries, and dependency vulnerabilities.",
+    caps: ["Static Code Audit", "Permission Analysis", "Secret Leak Detection", "No External Web"],
+    rule: "Network-denied shell policy prevents accidental exfiltration during review."
+  },
+  "uiux-reviewer": {
+    badge: "DESIGN SYSTEM SPECIALIST",
+    title: "uiux-reviewer",
+    desc: "Validates accessibility (WCAG AA/AAA), responsive layouts across breakpoints, interaction states, design tokens, color contrast, and reduced-motion compliance.",
+    caps: ["DOM / CSS Inspection", "A11y Audit", "Token Consistency", "No External Web"],
+    rule: "Activated only for user-facing visual interfaces, not backend or CLI tasks."
+  }
+};
+
+const harnessModels = {
+  claude: { explorer: "haiku", researcher: "haiku", implementer: "sonnet", reviewer: "sonnet", "security-reviewer": "sonnet", "uiux-reviewer": "sonnet" },
+  codex: { explorer: "dynamic (allowlist)", researcher: "dynamic (allowlist)", implementer: "dynamic (allowlist)", reviewer: "dynamic (allowlist)", "security-reviewer": "dynamic (allowlist)", "uiux-reviewer": "dynamic (allowlist)" },
+  gemini: { explorer: "flash", researcher: "flash", implementer: "flash", reviewer: "flash", "security-reviewer": "flash", "uiux-reviewer": "flash" }
+};
+
+// 2. Harness Switcher
+const harnessBtns = document.querySelectorAll('.harness-btn');
+let currentHarness = 'claude';
+
+harnessBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    harnessBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentHarness = btn.dataset.harness;
+    updateDynamicModels();
+  });
+});
+
+function updateDynamicModels() {
+  document.querySelectorAll('.worker-card').forEach(card => {
+    const nodeKey = card.dataset.node;
+    const modelSpan = card.querySelector('.dyn-model');
+    if (modelSpan && harnessModels[currentHarness][nodeKey]) {
+      modelSpan.textContent = harnessModels[currentHarness][nodeKey];
+    }
+  });
+}
+
+// 3. Topology Node Selection
+const selectableNodes = document.querySelectorAll('.controller-node, .worker-card');
+selectableNodes.forEach(node => {
+  node.addEventListener('click', () => {
+    selectableNodes.forEach(n => n.classList.remove('selected'));
+    node.classList.add('selected');
+    const nodeKey = node.dataset.node;
+    renderInspector(nodeKey);
+  });
+});
+
+function renderInspector(key) {
+  const data = nodeData[key];
+  if (!data) return;
+  document.getElementById('insp-badge').textContent = data.badge;
+  document.getElementById('insp-title').textContent = data.title;
+  document.getElementById('insp-desc').textContent = data.desc;
+  document.getElementById('insp-rule').textContent = data.rule;
+  
+  const capsContainer = document.getElementById('insp-caps');
+  capsContainer.innerHTML = '';
+  data.caps.forEach(cap => {
+    const span = document.createElement('span');
+    span.className = 'tag-item';
+    span.textContent = cap;
+    capsContainer.appendChild(span);
+  });
+}
+
+// 4. Tab Navigation
+const tabNavBtns = document.querySelectorAll('.tab-nav-btn');
+const tabPanels = document.querySelectorAll('.tab-panel');
+
+tabNavBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabNavBtns.forEach(b => b.classList.remove('active'));
+    tabPanels.forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const target = document.getElementById(btn.dataset.tab);
+    if (target) target.classList.add('active');
+  });
+});
+
+// 5. Matrix Table Search Filter
+const searchInput = document.getElementById('role-search');
+searchInput.addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase();
+  const rows = document.querySelectorAll('#matrix-table tbody tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  });
+});
+
+// 6. Copy Code Button
+function copyCode(btn) {
+  const pre = btn.closest('.code-wrapper').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    const orig = btn.innerText;
+    btn.innerText = 'Copied!';
+    setTimeout(() => { btn.innerText = orig; }, 1500);
+  });
+}
+</script>
+</body>
+</html>
