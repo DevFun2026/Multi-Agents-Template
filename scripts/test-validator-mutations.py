@@ -54,6 +54,61 @@ def mutate_text(root: Path, rel: str, fn: Callable[[str], str]) -> None:
     path.write_text(fn(path.read_text(encoding="utf-8")), encoding="utf-8")
 
 
+def write_claude_agent(root: Path, name: str, tools: str) -> None:
+    (root / f".claude/agents/{name}.md").write_text(
+        f"""---
+name: {name}
+description: Custom helper used by the validator mutation suite.
+model: haiku
+tools: {tools}
+disallowedTools: Agent
+---
+
+Custom helper.
+""",
+        encoding="utf-8",
+    )
+
+
+def write_gemini_agent(root: Path, name: str, tools: list[str]) -> None:
+    tool_lines = "\n".join(f'  - "{tool}"' for tool in tools)
+    (root / f".gemini/agents/{name}.md").write_text(
+        f"""---
+name: {name}
+description: Custom helper used by the validator mutation suite.
+kind: local
+tools:
+{tool_lines}
+model: flash
+---
+
+Custom helper.
+""",
+        encoding="utf-8",
+    )
+
+
+GEMINI_POLICY = "examples/gemini-user-policies/reviewer-network-deny.toml"
+# The pattern shipped before the fix: Gemini 0.62.0 drops it as a potential
+# ReDoS (nested quantifier), so the "wrapped" rules never loaded.
+DROPPED_BY_GEMINI_REGEX = (
+    r"(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*"
+    r"(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)"
+)
+
+
+def replace_first_policy_regex(root: Path, new_regex: str) -> None:
+    def edit(text: str) -> str:
+        lines = text.splitlines(keepends=True)
+        for i, line in enumerate(lines):
+            if line.startswith("commandRegex = "):
+                lines[i] = f"commandRegex = '{new_regex}'\n"
+                return "".join(lines)
+        raise AssertionError("no commandRegex rule found in Gemini policy example")
+
+    mutate_text(root, GEMINI_POLICY, edit)
+
+
 cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "codex max_depth exactness",
@@ -214,11 +269,78 @@ config_file = "agents/docs.toml"
     ),
 
     (
+        "gemini wildcard tools grant local and web access",
+        lambda root: write_gemini_agent(root, "helper", ["*"]),
+    ),
+    (
+        "gemini local read cannot be combined with all MCP tools",
+        lambda root: write_gemini_agent(root, "helper", ["read_file", "mcp_*"]),
+    ),
+    (
+        "gemini local read cannot be combined with one MCP tool",
+        lambda root: write_gemini_agent(root, "helper", ["read_file", "mcp_fetch_fetch"]),
+    ),
+    (
+        "gemini shell cannot be combined with discovered tools",
+        lambda root: write_gemini_agent(root, "helper", ["run_shell_command", "discovered_tool_fetch"]),
+    ),
+    (
+        "claude local read cannot be combined with an MCP tool",
+        lambda root: write_claude_agent(root, "helper", "Read, Grep, mcp__fetch__fetch"),
+    ),
+    (
+        "claude Bash specifier cannot be combined with an MCP server",
+        lambda root: write_claude_agent(root, "helper", "Bash(git diff *), mcp__fetch"),
+    ),
+    (
+        "gemini policy regex that Gemini drops as ReDoS is rejected",
+        lambda root: replace_first_policy_regex(root, DROPPED_BY_GEMINI_REGEX),
+    ),
+    (
+        "gemini policy regex with a quantified group is rejected",
+        lambda root: replace_first_policy_regex(root, r'(env\s+)?(curl|wget)(\s|")'),
+    ),
+    (
+        "gemini policy regex anchored with ^ is rejected",
+        lambda root: replace_first_policy_regex(root, r'^[^\s"]*/(curl|wget)(\s|")'),
+    ),
+    (
+        "gemini policy regex with doubled backslashes is rejected",
+        lambda root: replace_first_policy_regex(root, r'[^\\s"]*/(curl|wget)(\\s|")'),
+    ),
+    (
+        "gemini policy regex must compile",
+        lambda root: replace_first_policy_regex(root, r'[^\s"*/(curl|wget'),
+    ),
+
+    (
         "text files require final newline",
         lambda root: (root / "AGENTS.md").write_text(
             (root / "AGENTS.md").read_text(encoding="utf-8").rstrip("\n"),
             encoding="utf-8",
         ),
+    ),
+]
+
+
+# Valid custom roles that must keep passing, so the invariants are not
+# satisfied by rejecting everything.
+accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
+    (
+        "web/MCP-only Gemini researcher is allowed",
+        lambda root: write_gemini_agent(root, "docs-researcher", ["web_fetch", "mcp_docs_search"]),
+    ),
+    (
+        "local-only Gemini helper is allowed",
+        lambda root: write_gemini_agent(root, "lister", ["list_directory", "glob"]),
+    ),
+    (
+        "web/MCP-only Claude researcher is allowed",
+        lambda root: write_claude_agent(root, "docs-researcher", "WebFetch, mcp__docs__search"),
+    ),
+    (
+        "local-only Claude helper is allowed",
+        lambda root: write_claude_agent(root, "lister", "Read, Glob"),
     ),
 ]
 
@@ -246,5 +368,18 @@ with tempfile.TemporaryDirectory(prefix="multi-agents-validator-") as tmp:
             raise SystemExit(1)
 
         print(f"[ok] mutation rejected: {name}")
+
+    for index, (name, mutate) in enumerate(accepted_cases):
+        case_root = base / f"accepted-{index}"
+        copy_repo(case_root)
+        mutate(case_root)
+        result = run_validator(case_root)
+
+        if result.returncode != 0:
+            print(f"[fail] valid custom role unexpectedly rejected: {name}")
+            print(result.stdout)
+            raise SystemExit(1)
+
+        print(f"[ok] valid custom role accepted: {name}")
 
 print("Validator mutation tests passed.")

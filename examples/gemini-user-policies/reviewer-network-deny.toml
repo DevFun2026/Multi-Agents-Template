@@ -2,9 +2,20 @@
 # for Gemini CLI 0.62.0. Workspace .gemini/policies are currently non-functional.
 #
 # This is a narrow guardrail for common curl/wget forms, not a complete
-# network sandbox. It additionally catches common absolute-path, env, and
-# VAR=value prefixes. Other programs (python, node, nc, ssh, etc.) can still
-# open sockets; use Gemini --sandbox for a stronger execution boundary.
+# network sandbox. It denies direct curl/wget plus common absolute/relative
+# path, env, and VAR=value prefixed forms. Other programs (python, node, nc,
+# ssh, etc.) can still open sockets; use Gemini --sandbox for a stronger
+# execution boundary.
+#
+# Gemini constraints these patterns are written for (verified against the
+# 0.62.0 policy loader, see scripts/test-gemini-policy.mjs):
+# - commandRegex is matched against the JSON-encoded tool args after the
+#   literal prefix "command":" so `^` can never match; the closing `"` of the
+#   JSON string stands in for end-of-command.
+# - Patterns that look like nested quantifiers, e.g. `(env\s+)?` or
+#   `(...\s+)*`, are rejected as "potential ReDoS" and the rule is silently
+#   dropped. Keep every quantified token outside of a quantified group.
+# - These are TOML literal strings: write `\s`, not `\\s`.
 
 [[rule]]
 name = "Deny reviewer curl/wget prefixes"
@@ -15,10 +26,26 @@ decision = "deny"
 priority = 900
 
 [[rule]]
-name = "Deny reviewer wrapped curl/wget"
+name = "Deny reviewer absolute/relative path curl/wget"
 subagent = "reviewer"
 toolName = "run_shell_command"
-commandRegex = '(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)'
+commandRegex = '[^\s"]*/(curl|wget)(\s|")'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny reviewer env-wrapped curl/wget"
+subagent = "reviewer"
+toolName = "run_shell_command"
+commandRegex = 'env\s[^"]*(curl|wget)(\s|")'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny reviewer VAR=value prefixed curl/wget"
+subagent = "reviewer"
+toolName = "run_shell_command"
+commandRegex = '[A-Za-z_][A-Za-z0-9_]*=[^"]*\s[^\s"]*(curl|wget)(\s|")'
 decision = "deny"
 priority = 901
 
@@ -31,10 +58,26 @@ decision = "deny"
 priority = 900
 
 [[rule]]
-name = "Deny security reviewer wrapped curl/wget"
+name = "Deny security reviewer absolute/relative path curl/wget"
 subagent = "security-reviewer"
 toolName = "run_shell_command"
-commandRegex = '(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)'
+commandRegex = '[^\s"]*/(curl|wget)(\s|")'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny security reviewer env-wrapped curl/wget"
+subagent = "security-reviewer"
+toolName = "run_shell_command"
+commandRegex = 'env\s[^"]*(curl|wget)(\s|")'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny security reviewer VAR=value prefixed curl/wget"
+subagent = "security-reviewer"
+toolName = "run_shell_command"
+commandRegex = '[A-Za-z_][A-Za-z0-9_]*=[^"]*\s[^\s"]*(curl|wget)(\s|")'
 decision = "deny"
 priority = 901
 
@@ -47,9 +90,25 @@ decision = "deny"
 priority = 900
 
 [[rule]]
-name = "Deny UIUX reviewer wrapped curl/wget"
+name = "Deny UIUX reviewer absolute/relative path curl/wget"
 subagent = "uiux-reviewer"
 toolName = "run_shell_command"
-commandRegex = '(^|[;&|]\\s*)(env\\s+)?([A-Za-z_][A-Za-z0-9_]*=[^ \\t;&|]+\\s+)*(/[^ \\t;&|]+/)?(curl|wget)(\\s|$)'
+commandRegex = '[^\s"]*/(curl|wget)(\s|")'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny UIUX reviewer env-wrapped curl/wget"
+subagent = "uiux-reviewer"
+toolName = "run_shell_command"
+commandRegex = 'env\s[^"]*(curl|wget)(\s|")'
+decision = "deny"
+priority = 901
+
+[[rule]]
+name = "Deny UIUX reviewer VAR=value prefixed curl/wget"
+subagent = "uiux-reviewer"
+toolName = "run_shell_command"
+commandRegex = '[A-Za-z_][A-Za-z0-9_]*=[^"]*\s[^\s"]*(curl|wget)(\s|")'
 decision = "deny"
 priority = 901

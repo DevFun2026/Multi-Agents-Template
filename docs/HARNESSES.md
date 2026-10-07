@@ -91,7 +91,9 @@ The template deliberately separates dedicated local/web tools:
 
 Claude project permissions deny common `curl`/`wget` Bash commands, but this is a guardrail rather than proof of total network isolation. For an actual Bash execution boundary, use Claude Code's sandbox with explicit network restrictions/allowlists and do not allow unsandboxed Bash commands.
 
-Gemini CLI 0.62.0 supports subagent-specific policy rules, but its **workspace policy tier is currently non-functional**. The repository therefore ships a user-policy example at `examples/gemini-user-policies/reviewer-network-deny.toml`; copy it to `~/.gemini/policies/` to apply it. It blocks direct/common wrapped `curl`/`wget` forms (including common absolute-path, `env`, and `VAR=value` prefixes) for reviewers, but it is not a full socket sandbox. Use `gemini --sandbox` when you need a stronger execution boundary.
+Gemini CLI 0.62.0 supports subagent-specific policy rules, but its **workspace policy tier is currently non-functional**. The repository therefore ships a user-policy example at `examples/gemini-user-policies/reviewer-network-deny.toml`; copy it to `~/.gemini/policies/` to apply it. It blocks direct `curl`/`wget` plus common absolute/relative-path, `env`, and `VAR=value` prefixed forms for reviewers, but it is not a full socket sandbox.
+
+Gemini drops any `commandRegex` that its loader considers a potential ReDoS (anything that looks like a quantified group, such as `(env\s+)?`) and only reports it as a loader error, so a rule can look correct and still never load. `commandRegex` is also matched after the JSON prefix `"command":"`, so `^` never matches. CI therefore runs `scripts/test-gemini-policy.mjs` against the real Gemini CLI 0.62.0 policy engine. Use `gemini --sandbox` when you need a stronger execution boundary.
 
 Codex non-research roles explicitly set `web_search = "disabled"`. The Codex external researcher has live search and an instruction not to inspect local files, but current role TOML does not provide a hard local-read capability split comparable to Claude/Gemini tool lists.
 

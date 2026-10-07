@@ -64,6 +64,7 @@ REQUIRED = [
     "scripts/verify-template.sh",
     "scripts/test-bootstrap.py",
     "scripts/test-validator-mutations.py",
+    "scripts/test-gemini-policy.mjs",
     "examples/gemini-user-policies/reviewer-network-deny.toml",
 ]
 
@@ -78,6 +79,27 @@ CODEX_EXPECTED_WEB_SEARCH = {
 
 CLAUDE_LOCAL_CAPABLE_TOOLS = {"Read", "Grep", "Glob", "Write", "Edit", "Bash"}
 CLAUDE_WEB_TOOLS = {"WebSearch", "WebFetch"}
+
+
+def claude_tool_capabilities(tools: set[str]) -> tuple[set[str], set[str]]:
+    """Return (local-capable, network-capable) tool entries.
+
+    MCP tools (`mcp__<server>__<tool>` or a whole `mcp__<server>`) can reach
+    arbitrary external services, so they count as network-capable. A `*`
+    wildcard grants everything and counts as both.
+    """
+    local: set[str] = set()
+    network: set[str] = set()
+    for tool in tools:
+        base = tool.split("(", 1)[0].strip()
+        if base == "*":
+            local.add(tool)
+            network.add(tool)
+        if base in CLAUDE_LOCAL_CAPABLE_TOOLS:
+            local.add(tool)
+        if base in CLAUDE_WEB_TOOLS or base.startswith("mcp__"):
+            network.add(tool)
+    return local, network
 
 CLAUDE_EXPECTED_TOOLS: dict[str, set[str]] = {
     "explorer": {"Read", "Grep", "Glob"},
@@ -142,6 +164,27 @@ GEMINI_LOCAL_CAPABLE_TOOLS = {
     "run_shell_command",
 }
 GEMINI_WEB_TOOLS = {"google_web_search", "web_fetch"}
+
+
+def gemini_tool_capabilities(tools: set[str]) -> tuple[set[str], set[str]]:
+    """Return (local-capable, network-capable) tool entries.
+
+    Gemini 0.62.0 expands `*` to every parent tool (including web_fetch and
+    run_shell_command) and `mcp_*` to every MCP tool. MCP tools and
+    `discovered_tool_*` entries run external servers/commands, so they count
+    as network-capable.
+    """
+    local: set[str] = set()
+    network: set[str] = set()
+    for tool in tools:
+        if tool == "*":
+            local.add(tool)
+            network.add(tool)
+        if tool in GEMINI_LOCAL_CAPABLE_TOOLS:
+            local.add(tool)
+        if tool in GEMINI_WEB_TOOLS or tool.startswith("mcp_") or tool.startswith("discovered_tool_"):
+            network.add(tool)
+    return local, network
 
 GEMINI_EXPECTED_TOOLS: dict[str, set[str]] = {
     "explorer": {"read_file", "read_many_files", "list_directory", "glob", "grep_search"},
@@ -342,6 +385,34 @@ def is_valid_gemini_tool_name(name: str) -> bool:
     return bool(slug.fullmatch(tool))
 
 
+# Mirrors Gemini CLI 0.62.0 `isSafeRegExp` (packages/core policy loader).
+# Gemini silently drops any commandRegex rule that fails this check, so a
+# pattern that is valid regex can still provide zero protection.
+GEMINI_NESTED_QUANTIFIER = re.compile(r"\([^)]*[*+?{].*\)[*+?{]")
+GEMINI_MAX_REGEX_LENGTH = 2048
+
+
+def gemini_regex_problem(pattern: str) -> str | None:
+    # Gemini prepends the JSON args prefix before compiling the rule.
+    full = '"command":"' + pattern
+    try:
+        re.compile(full)
+    except re.error as exc:
+        return f"commandRegex does not compile: {exc}"
+    if len(full) > GEMINI_MAX_REGEX_LENGTH:
+        return f"commandRegex longer than {GEMINI_MAX_REGEX_LENGTH} characters is dropped by Gemini"
+    if GEMINI_NESTED_QUANTIFIER.search(full):
+        return (
+            "commandRegex looks like a nested quantifier; Gemini drops it as "
+            "'Unsafe regex pattern (potential ReDoS)'. Keep quantified tokens out of quantified groups"
+        )
+    if pattern.startswith("^") or "(^" in pattern:
+        return 'commandRegex is matched after the "command":" JSON prefix, so ^ can never match'
+    if "\\\\" in pattern:
+        return "commandRegex contains a doubled backslash; TOML literal strings need single backslashes"
+    return None
+
+
 def normalize_gemini_tools(value: Any, rel: str) -> list[str]:
     if value is None:
         fail(f"{rel}: tools must be declared explicitly; omission inherits parent/all tools")
@@ -478,8 +549,12 @@ for path in sorted((ROOT / ".claude/agents").glob("*.md")):
     tools = set(normalize_claude_tools(fm.get("tools"), rel))
     disallowed = set(normalize_disallowed_tools(fm.get("disallowedTools"), rel))
 
-    if tools & CLAUDE_LOCAL_CAPABLE_TOOLS and tools & CLAUDE_WEB_TOOLS:
-        fail(f"{rel}: agent must not combine local/shell tools with web tools")
+    local_tools, network_tools = claude_tool_capabilities(tools)
+    if local_tools and network_tools:
+        fail(
+            f"{rel}: agent must not combine local/shell tools {sorted(local_tools)} with "
+            f"network-capable web/MCP/wildcard tools {sorted(network_tools)}"
+        )
 
     if "Agent" not in disallowed:
         fail(f"{rel}: disallowedTools must include Agent")
@@ -524,8 +599,12 @@ for path in sorted((ROOT / ".gemini/agents").glob("*.md")):
 
     tools = set(normalize_gemini_tools(fm.get("tools"), rel))
 
-    if tools & GEMINI_LOCAL_CAPABLE_TOOLS and tools & GEMINI_WEB_TOOLS:
-        fail(f"{rel}: agent must not combine local/shell tools with web tools")
+    local_tools, network_tools = gemini_tool_capabilities(tools)
+    if local_tools and network_tools:
+        fail(
+            f"{rel}: agent must not combine local/shell tools {sorted(local_tools)} with "
+            f"network-capable web/MCP/wildcard tools {sorted(network_tools)}"
+        )
 
     if fm.get("model") == "gemini-3-flash-preview":
         fail(f"{rel}: use the flash alias instead of stale gemini-3-flash-preview pin")
@@ -566,6 +645,15 @@ else:
         and isinstance(rule.get("commandRegex"), str)
         and "curl|wget" in rule.get("commandRegex", "")
     }
+    for index, rule in enumerate(rules, start=1):
+        if not isinstance(rule, dict) or not isinstance(rule.get("commandRegex"), str):
+            continue
+        problem = gemini_regex_problem(rule["commandRegex"])
+        if problem:
+            fail(
+                "examples/gemini-user-policies/reviewer-network-deny.toml: "
+                f"rule #{index} ({rule.get('name', 'unnamed')}): {problem}"
+            )
     if not expected_subagents.issubset(prefix_subagents):
         fail("Gemini reviewer user-policy example must deny curl/wget prefixes for all reviewer roles")
     if not expected_subagents.issubset(regex_subagents):

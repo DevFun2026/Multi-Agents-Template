@@ -143,7 +143,7 @@ To reduce accidental exfiltration paths:
 examples/gemini-user-policies/reviewer-network-deny.toml
 ```
 
-That policy blocks direct/common wrapped `curl`/`wget` forms (including common absolute-path, `env`, and `VAR=value` prefixes); it is still not a full network sandbox. Programs such as Python, Node, nc, ssh, or a missed shell wrapper can still open sockets.
+That policy blocks direct `curl`/`wget` plus common absolute/relative-path, `env`, and `VAR=value` prefixed forms for reviewer roles. `scripts/test-gemini-policy.mjs` proves this against Gemini CLI 0.62.0's real policy loader and engine (in YOLO and default modes), because Gemini silently drops `commandRegex` rules it considers unsafe. It is still not a full network sandbox: Python, Node, nc, ssh, or an unanticipated shell wrapper can still open sockets.
 
 For a stronger boundary, use Claude Code's Bash sandbox/network controls (with an explicit network allowlist) and run Gemini CLI with `--sandbox` where appropriate.
 
@@ -182,9 +182,13 @@ Validation now:
 - rejects ignored `persistent_instructions`;
 - checks Claude recursion/worktree controls;
 - mirrors Gemini's strict local-agent frontmatter keys/tool names and role-specific tool sets;
+- treats `*`, MCP tools (`mcp__…` in Claude, `mcp_…` in Gemini) and Gemini `discovered_tool_…` entries as network-capable, so they cannot be combined with local/shell tools;
+- mirrors Gemini's `commandRegex` safety check (compile, length, nested-quantifier heuristic) and rejects `^` anchors and doubled backslashes in the policy example;
 - runs Bash syntax checks and shellcheck when installed.
 
-GitHub Actions additionally installs **Codex CLI 0.160.1**, creates a throwaway trusted `CODEX_HOME`, positively asserts a project-only marker through `codex debug prompt-input`, then runs `codex doctor` and fails on ignored config keys or malformed agent roles. The verification wrapper also runs mutation tests proving dangerous config changes are rejected.
+`scripts/test-gemini-policy.mjs` loads the Gemini policy example through Gemini CLI's own loader and engine, fails on any loader error, and asserts deny/allow decisions for wrapped and benign commands. Locally it runs when Gemini CLI is installed (or `GEMINI_CLI_DIR` points at it) and is skipped otherwise.
+
+GitHub Actions additionally installs **Codex CLI 0.160.1** and **Gemini CLI 0.62.0** (the Gemini policy test is required there), creates a throwaway trusted `CODEX_HOME`, positively asserts a project-only marker through `codex debug prompt-input`, then runs `codex doctor` and fails on ignored config keys or malformed agent roles. The verification wrapper also runs mutation tests proving dangerous config changes are rejected.
 
 ## CI hardening
 
