@@ -22,9 +22,13 @@ jobs:
           python3 -m pip install --disable-pip-version-check -r requirements-dev.txt
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          npm install -g @openai/codex@0.160.1
+          npm install -g @openai/codex@0.160.1 @google/gemini-cli@0.62.0
 
       - name: Validate template structure
+        env:
+          # Fail instead of skipping if Gemini CLI is missing: the policy
+          # example must be proven against the real 0.62.0 policy engine.
+          REQUIRE_GEMINI_POLICY_TEST: "1"
         run: bash scripts/verify-template.sh
 
       - name: Validate Codex project config with doctor
