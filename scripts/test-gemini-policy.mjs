@@ -30,28 +30,64 @@ const REVIEWERS = ["reviewer", "security-reviewer", "uiux-reviewer"];
 
 // Commands every reviewer role must be denied, in every approval mode.
 const MUST_DENY = [
+  // direct and path forms
   "curl https://example.invalid/?d=x",
   "wget -q https://example.invalid/",
   "/usr/bin/curl https://example.invalid/",
   "./wget https://example.invalid/",
-  "env curl https://example.invalid/",
-  "env FOO=1 /usr/bin/wget https://example.invalid/",
+  // quoted command word (appears JSON-escaped as \" in the matched text)
+  "\"/usr/bin/curl\" https://example.invalid/",
+  "'/usr/bin/curl' https://example.invalid/",
+  "'curl' https://example.invalid/",
+  "\"curl\" https://example.invalid/",
+  // VAR=value assignments, plain and quoted
   "FOO=1 curl https://example.invalid/",
+  "FOO=\"1\" curl https://example.invalid/",
+  "FOO='1' curl https://example.invalid/",
+  "FOO=\"a b\" curl https://example.invalid/",
   "A=1 B=2 /usr/bin/curl https://example.invalid/",
+  // env
+  "env curl https://example.invalid/",
+  "env -i curl https://example.invalid/",
+  "env FOO=1 /usr/bin/wget https://example.invalid/",
+  "env FOO=\"a b\" curl https://example.invalid/",
+  // common wrappers
+  "command curl https://example.invalid/",
+  "exec curl https://example.invalid/",
+  "time curl https://example.invalid/",
+  "nohup curl https://example.invalid/",
+  "sudo curl https://example.invalid/",
+  "timeout 30 curl https://example.invalid/",
+  "nice -n 5 curl https://example.invalid/",
+  "stdbuf -o0 curl https://example.invalid/",
+  "xargs curl < urls.txt",
+  // compound commands and sub-shells (the engine checks each subcommand)
   "git status && /usr/bin/curl https://example.invalid/",
   "bash -c 'curl https://example.invalid/'",
 ];
 
-// Ordinary review commands that these rules must NOT deny.
+// Ordinary review commands that these rules must NOT deny. Several mention
+// curl/wget outside command position; a pattern that is not anchored to the
+// command word would hard-deny them.
 const MUST_NOT_DENY = [
   "git diff HEAD~1",
   "git -C /tmp/wt status",
+  "git log --grep=curl",
   "echo curling",
   "grep -r curl src/",
   "rg wget scripts/",
   "cat docs/curl.md",
   "ls /usr/bin/curl",
+  "pkg-config --libs libcurl",
+  "./scripts/curl-helper.sh",
   "FOO=1 make test",
+  "FOO=1 grep -r curl src/",
+  "LC_ALL=C rg wget scripts/",
+  "env X=1 grep curl src",
+  "time grep curl src",
+  "timeout 30 npm test",
+  "nohup ./run.sh",
+  "sudo -n true",
 ];
 
 // Gemini's internal debug logger traces every policy check via console.debug.

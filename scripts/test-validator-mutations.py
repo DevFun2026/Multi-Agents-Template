@@ -102,7 +102,7 @@ def replace_first_policy_regex(root: Path, new_regex: str) -> None:
         lines = text.splitlines(keepends=True)
         for i, line in enumerate(lines):
             if line.startswith("commandRegex = "):
-                lines[i] = f"commandRegex = '{new_regex}'\n"
+                lines[i] = f"commandRegex = '''{new_regex}'''\n"
                 return "".join(lines)
         raise AssertionError("no commandRegex rule found in Gemini policy example")
 
@@ -293,6 +293,34 @@ config_file = "agents/docs.toml"
         lambda root: write_claude_agent(root, "helper", "Bash(git diff *), mcp__fetch"),
     ),
     (
+        "claude PowerShell counts as local and cannot be combined with WebFetch",
+        lambda root: write_claude_agent(root, "helper", "PowerShell, WebFetch"),
+    ),
+    (
+        "claude Monitor counts as local and cannot be combined with WebFetch",
+        lambda root: write_claude_agent(root, "helper", "Monitor, WebFetch"),
+    ),
+    (
+        "claude NotebookEdit counts as local and cannot be combined with WebSearch",
+        lambda root: write_claude_agent(root, "helper", "NotebookEdit, WebSearch"),
+    ),
+    (
+        "claude unknown future tool counts as local",
+        lambda root: write_claude_agent(root, "helper", "FutureFileTool, WebFetch"),
+    ),
+    (
+        "gemini read_mcp_resource is network-capable",
+        lambda root: write_gemini_agent(root, "helper", ["read_file", "read_mcp_resource"]),
+    ),
+    (
+        "gemini list_mcp_resources is network-capable",
+        lambda root: write_gemini_agent(root, "helper", ["glob", "list_mcp_resources"]),
+    ),
+    (
+        "gemini activate_skill counts as local",
+        lambda root: write_gemini_agent(root, "helper", ["activate_skill", "web_fetch"]),
+    ),
+    (
         "gemini policy regex that Gemini drops as ReDoS is rejected",
         lambda root: replace_first_policy_regex(root, DROPPED_BY_GEMINI_REGEX),
     ),
@@ -337,6 +365,18 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "web/MCP-only Claude researcher is allowed",
         lambda root: write_claude_agent(root, "docs-researcher", "WebFetch, mcp__docs__search"),
+    ),
+    (
+        "Claude web researcher may keep an inert TodoWrite tool",
+        lambda root: write_claude_agent(root, "docs-researcher", "WebSearch, WebFetch, TodoWrite"),
+    ),
+    (
+        "Gemini web researcher may keep inert write_todos and get_internal_docs",
+        lambda root: write_gemini_agent(root, "docs-researcher", ["web_fetch", "write_todos", "get_internal_docs"]),
+    ),
+    (
+        "Gemini policy regex may use a doubled backslash before a quote",
+        lambda root: replace_first_policy_regex(root, r'\\"(curl|wget)\\"'),
     ),
     (
         "local-only Claude helper is allowed",

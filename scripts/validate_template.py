@@ -65,6 +65,7 @@ REQUIRED = [
     "scripts/test-bootstrap.py",
     "scripts/test-validator-mutations.py",
     "scripts/test-gemini-policy.mjs",
+    "scripts/gen-gemini-policy.py",
     "examples/gemini-user-policies/reviewer-network-deny.toml",
 ]
 
@@ -81,12 +82,19 @@ CLAUDE_LOCAL_CAPABLE_TOOLS = {"Read", "Grep", "Glob", "Write", "Edit", "Bash"}
 CLAUDE_WEB_TOOLS = {"WebSearch", "WebFetch"}
 
 
+# Tools that neither touch local files/shell nor reach the network. A role
+# that has any network-capable tool may only add tools from this set; every
+# other tool, including ones this validator has never heard of (PowerShell,
+# Monitor, NotebookEdit, LSP, a future tool, ...), counts as local-capable.
+CLAUDE_INERT_TOOLS = {"TodoWrite", "AskUserQuestion", "EnterPlanMode", "ExitPlanMode"}
+
+
 def claude_tool_capabilities(tools: set[str]) -> tuple[set[str], set[str]]:
     """Return (local-capable, network-capable) tool entries.
 
-    MCP tools (`mcp__<server>__<tool>` or a whole `mcp__<server>`) can reach
-    arbitrary external services, so they count as network-capable. A `*`
-    wildcard grants everything and counts as both.
+    Network-capable: dedicated web tools, any MCP tool (`mcp__<server>` or
+    `mcp__<server>__<tool>`), and the `*` wildcard. Local-capable: every
+    other tool that is not explicitly inert. `*` counts as both.
     """
     local: set[str] = set()
     network: set[str] = set()
@@ -95,11 +103,12 @@ def claude_tool_capabilities(tools: set[str]) -> tuple[set[str], set[str]]:
         if base == "*":
             local.add(tool)
             network.add(tool)
-        if base in CLAUDE_LOCAL_CAPABLE_TOOLS:
-            local.add(tool)
-        if base in CLAUDE_WEB_TOOLS or base.startswith("mcp__"):
+        elif base in CLAUDE_WEB_TOOLS or base.startswith("mcp__"):
             network.add(tool)
+        elif base not in CLAUDE_INERT_TOOLS:
+            local.add(tool)
     return local, network
+
 
 CLAUDE_EXPECTED_TOOLS: dict[str, set[str]] = {
     "explorer": {"Read", "Grep", "Glob"},
@@ -166,13 +175,36 @@ GEMINI_LOCAL_CAPABLE_TOOLS = {
 GEMINI_WEB_TOOLS = {"google_web_search", "web_fetch"}
 
 
+GEMINI_MCP_TOOLS = {"read_mcp_resource", "list_mcp_resources"}
+# Built-ins that neither touch local files/shell nor reach the network. A
+# role with any network-capable tool may only add tools from this set; any
+# other tool (including activate_skill, which loads files from disk) counts as
+# local-capable.
+GEMINI_INERT_TOOLS = {
+    "write_todos",
+    "ask_user",
+    "enter_plan_mode",
+    "exit_plan_mode",
+    "update_topic",
+    "complete_task",
+    "get_internal_docs",
+    "tracker_create_task",
+    "tracker_update_task",
+    "tracker_get_task",
+    "tracker_list_tasks",
+    "tracker_add_dependency",
+    "tracker_visualize",
+}
+
+
 def gemini_tool_capabilities(tools: set[str]) -> tuple[set[str], set[str]]:
     """Return (local-capable, network-capable) tool entries.
 
     Gemini 0.62.0 expands `*` to every parent tool (including web_fetch and
-    run_shell_command) and `mcp_*` to every MCP tool. MCP tools and
-    `discovered_tool_*` entries run external servers/commands, so they count
-    as network-capable.
+    run_shell_command) and `mcp_*` to every MCP tool. Network-capable: web
+    tools, MCP tools (`mcp_...`, read/list_mcp_resource(s)) and
+    `discovered_tool_...` entries, which run external commands. Local-capable:
+    every other tool that is not explicitly inert. `*` counts as both.
     """
     local: set[str] = set()
     network: set[str] = set()
@@ -180,11 +212,17 @@ def gemini_tool_capabilities(tools: set[str]) -> tuple[set[str], set[str]]:
         if tool == "*":
             local.add(tool)
             network.add(tool)
-        if tool in GEMINI_LOCAL_CAPABLE_TOOLS:
-            local.add(tool)
-        if tool in GEMINI_WEB_TOOLS or tool.startswith("mcp_") or tool.startswith("discovered_tool_"):
+        elif (
+            tool in GEMINI_WEB_TOOLS
+            or tool in GEMINI_MCP_TOOLS
+            or tool.startswith("mcp_")
+            or tool.startswith("discovered_tool_")
+        ):
             network.add(tool)
+        elif tool not in GEMINI_INERT_TOOLS:
+            local.add(tool)
     return local, network
+
 
 GEMINI_EXPECTED_TOOLS: dict[str, set[str]] = {
     "explorer": {"read_file", "read_many_files", "list_directory", "glob", "grep_search"},
@@ -390,6 +428,7 @@ def is_valid_gemini_tool_name(name: str) -> bool:
 # pattern that is valid regex can still provide zero protection.
 GEMINI_NESTED_QUANTIFIER = re.compile(r"\([^)]*[*+?{].*\)[*+?{]")
 GEMINI_MAX_REGEX_LENGTH = 2048
+GEMINI_DOUBLED_CLASS_ESCAPE = re.compile(r"\\\\[sSdDwWbBtnr]")
 
 
 def gemini_regex_problem(pattern: str) -> str | None:
@@ -408,8 +447,15 @@ def gemini_regex_problem(pattern: str) -> str | None:
         )
     if pattern.startswith("^") or "(^" in pattern:
         return 'commandRegex is matched after the "command":" JSON prefix, so ^ can never match'
-    if "\\\\" in pattern:
-        return "commandRegex contains a doubled backslash; TOML literal strings need single backslashes"
+    # `\\s`, `\\d`, ... is the classic mistake of TOML-escaping inside a
+    # literal string: it matches a literal backslash followed by a letter.
+    # A doubled backslash before a quote (`\\"`) is legitimate and required:
+    # quotes in the command appear JSON-escaped as \" in the matched text.
+    if GEMINI_DOUBLED_CLASS_ESCAPE.search(pattern):
+        return (
+            "commandRegex contains a doubled backslash before a character class "
+            "(e.g. \\\\s); TOML literal strings need a single backslash"
+        )
     return None
 
 

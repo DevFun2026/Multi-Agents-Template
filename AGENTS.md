@@ -163,7 +163,7 @@ These rules apply to built-in and newly added project agents:
 
 - role `name` must match its filename stem;
 - Claude/Gemini roles must declare tools explicitly;
-- do not combine local/shell-capable tools and network-capable tools in one Claude/Gemini role; network-capable includes dedicated web tools, any MCP tool, Gemini `discovered_tool_…` entries, and the `*` wildcard (which grants everything);
+- do not combine local/shell-capable tools and network-capable tools in one Claude/Gemini role; network-capable includes dedicated web tools, any MCP tool, Gemini `discovered_tool_…` entries, and the `*` wildcard (which grants everything). A network-capable role may only add known-inert tools (todo/plan/ask-user style); any other tool, including an unknown one, counts as local;
 - every Codex role file must explicitly declare its `web_search` behavior;
 - Codex role-file name, filename, and declared `[agents.<name>]` key must agree when referenced.
 

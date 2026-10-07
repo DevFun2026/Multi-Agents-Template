@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 python3 scripts/validate_template.py
+python3 scripts/gen-gemini-policy.py --check
 python3 scripts/test-validator-mutations.py
 python3 scripts/test-bootstrap.py
 
