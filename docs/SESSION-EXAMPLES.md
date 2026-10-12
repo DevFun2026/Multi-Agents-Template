@@ -42,7 +42,7 @@ MAIN
 ├─ researcher: framework-native rate-limit behavior if docs are needed
 └─ security reviewer: identify bypass/trust-boundary risks
 
-MAIN -> design
+MAIN -> spec + design (+ ADR if the limiter choice is a new dependency)
   -> writing-plans -> STOP for user approval
   -> implementer: bounded change
   -> reviewer
@@ -68,7 +68,7 @@ MAIN
 ├─ explorer: identify frontend stack and design-system files
 └─ UI UX Pro Max: establish design direction
 
-MAIN -> freeze design constraints
+MAIN -> spec + design (design constraints frozen here)
   -> writing-plans -> STOP for user approval
   -> implementer: page/component implementation
   -> uiux reviewer: accessibility/responsive/interaction review
@@ -99,7 +99,7 @@ MAIN
 MAIN -> evidence reconciliation -> risk-ranked conclusion
 ```
 
-Examples 2 and 3 write files, so the planning gate (AGENTS.md section 9) applies: the controller clarifies with `brainstorming`, writes the plan with `writing-plans`, and stops until the user approves it. Examples 1 and 4 are read-only and need no approval stop.
+Examples 2 and 3 write files, so the planning gate (AGENTS.md section 9) applies: the controller clarifies with `brainstorming`, writes the spec, design, any ADRs and the plan under `docs/`, and stops until the user approves them. Examples 1 and 4 are read-only and need no approval stop.
 
 ## 5. When not to spawn
 

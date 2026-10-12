@@ -407,7 +407,7 @@ config_file = "agents/docs.toml"
         lambda root: mutate_text(
             root,
             "prompts/claude-session-start.md",
-            lambda s: s.replace("(no file edits except the plan/spec files, no implementer)", "(edit as needed)"),
+            lambda s: s.replace("(no file edits except the PHASE 1 artifacts, no implementer)", "(edit as needed)"),
         ),
     ),
     (
@@ -442,6 +442,48 @@ config_file = "agents/docs.toml"
             root,
             "CLAUDE.md",
             lambda s: s.replace("planning gate (section 9)", "planning gate (section 10)"),
+        ),
+    ),
+    (
+        "AGENTS.md must define the docs/adr/ artifact path",
+        lambda root: mutate_text(root, "AGENTS.md", lambda s: s.replace("docs/adr/", "docs/decisions/")),
+    ),
+    (
+        "AGENTS.md must state when an ADR is required",
+        lambda root: mutate_text(root, "AGENTS.md", lambda s: s.replace("An ADR is required", "An ADR may help")),
+    ),
+    (
+        "PHASE 1 must name the design artifact",
+        lambda root: mutate_text(
+            root, "prompts/claude-session-start.md", lambda s: s.replace("docs/designs/", "docs/")
+        ),
+    ),
+    (
+        "PHASE 1 must name the ADR artifact",
+        lambda root: mutate_text(
+            root, "prompts/gemini-session-start.md", lambda s: s.replace("docs/adr/", "docs/")
+        ),
+    ),
+    (
+        "artifact template is required",
+        lambda root: (root / "docs/templates/design.md").unlink(),
+    ),
+    (
+        "artifact template must keep its required headings",
+        lambda root: mutate_text(
+            root, "docs/templates/spec.md", lambda s: s.replace("## Acceptance criteria", "## Done")
+        ),
+    ),
+    (
+        "ADR must have a valid status",
+        lambda root: mutate_text(
+            root, "docs/adr/0001-mandatory-planning-gate.md", lambda s: s.replace("- Status: Accepted", "- Status: Maybe")
+        ),
+    ),
+    (
+        "ADR numbers must be unique",
+        lambda root: shutil.copy(
+            root / "docs/adr/0002-phase1-artifact-set.md", root / "docs/adr/0002-duplicate.md"
         ),
     ),
 

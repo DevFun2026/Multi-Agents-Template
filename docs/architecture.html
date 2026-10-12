@@ -1024,7 +1024,7 @@ footer {
         </div>
         <h3>Plan-Approval Gate</h3>
         <p>
-          No harness goes from objective straight to code. The controller clarifies with Superpowers <code style="color:var(--accent-cyan)">brainstorming</code>, writes the plan with <code style="color:var(--accent-cyan)">writing-plans</code>, then stops until the user explicitly approves it. Every start prompt encodes this as PHASE 1 (plan, stop) and PHASE 2 (execute), and the validator rejects any prompt that loses the stop.
+          No harness goes from objective straight to code. The controller clarifies with Superpowers <code style="color:var(--accent-cyan)">brainstorming</code>, then leaves a spec, a design, an ADR per architecture decision and a plan under <code style="color:var(--accent-cyan)">docs/</code>, and stops until the user explicitly approves the set. Every start prompt encodes this as PHASE 1 (plan, stop) and PHASE 2 (execute), and the validator rejects any prompt that loses the stop.
         </p>
       </div>
     </div>
@@ -1390,7 +1390,7 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
       <div class="step-node">
         <div class="step-number">02</div>
         <div class="step-name">Clarify</div>
-        <div class="step-owner">Superpowers brainstorming</div>
+        <div class="step-owner">brainstorming → spec</div>
       </div>
       <div class="step-node">
         <div class="step-number">03</div>
@@ -1400,12 +1400,12 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
       <div class="step-node main-step">
         <div class="step-number">04 · CORE</div>
         <div class="step-name">Architecture</div>
-        <div class="step-owner">Main Controller</div>
+        <div class="step-owner">Main Controller → design + ADRs</div>
       </div>
       <div class="step-node main-step">
         <div class="step-number">05 · CORE</div>
         <div class="step-name">Decompose &amp; Plan</div>
-        <div class="step-owner">Main Controller · writing-plans</div>
+        <div class="step-owner">writing-plans → plan</div>
       </div>
       <div class="step-node">
         <div class="step-number">06 · GATE</div>
@@ -1487,6 +1487,8 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
     <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/HARNESSES.md">Harnesses</a>
     <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/SESSION-EXAMPLES.md">Session examples</a>
     <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/UPSTREAMS.md">Upstreams</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/tree/main/docs/adr">ADRs</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/tree/main/docs/templates">Templates</a>
   </div>
 </footer>
 

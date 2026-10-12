@@ -53,6 +53,11 @@ Do **not** omit `fork_turns`: full-history forks can inherit the parent model/ef
 │   ├── settings.json
 │   └── agents/
 ├── docs/
+│   ├── adr/          # architecture decision records
+│   ├── designs/      # PHASE 1 designs
+│   ├── plans/        # PHASE 1 plans
+│   ├── specs/        # PHASE 1 specs
+│   └── templates/    # spec, design, ADR, plan templates
 ├── prompts/
 ├── requirements-dev.txt
 └── scripts/
@@ -157,7 +162,13 @@ For a stronger boundary, use Claude Code's Bash sandbox/network controls (with a
 
 Every start prompt runs in two phases:
 
-- **PHASE 1** — clarify with Superpowers `brainstorming`, gather read-only evidence, write the plan with `writing-plans`, then stop and wait for explicit approval.
+- **PHASE 1** — clarify with Superpowers `brainstorming`, gather read-only evidence, and write the PHASE 1 artifacts, then stop and wait for explicit approval:
+  - spec: `docs/specs/YYYY-MM-DD-<topic>-spec.md` (what and why);
+  - design: `docs/designs/YYYY-MM-DD-<topic>-design.md` (how);
+  - ADR: `docs/adr/NNNN-<title>.md`, one per architecture decision;
+  - plan: `docs/plans/YYYY-MM-DD-<topic>.md`, written with `writing-plans`.
+
+  Templates live in `docs/templates/`.
 - **PHASE 2** — execute the approved plan, verify, and report.
 
 This is the planning gate (AGENTS.md section 9). Reply with an explicit approval (for example "approved") to start PHASE 2, or say "skip planning" for a task that does not need it.
@@ -198,6 +209,7 @@ Validation now:
 - treats `*`, MCP tools (`mcp__…` in Claude; `mcp_…`, `read_mcp_resource`, `list_mcp_resources` in Gemini) and Gemini `discovered_tool_…` entries as network-capable. A role with any network-capable tool may only add a small set of known-inert tools (todo/plan/ask-user style); every other tool, including unknown or future tools, counts as local-capable;
 - mirrors Gemini's `commandRegex` safety check (compile, length, nested-quantifier heuristic) and rejects `^` anchors and doubled backslashes before a character class (such as `\\s`) in the policy example;
 - requires the `AGENTS.md` planning gate, a pointer to it from `CLAUDE.md`, `GEMINI.md` and Codex `developer_instructions`, matching `planning gate (section N)` references, and in every start prompt a PHASE 1 heading that forbids edits, the approval stop, and a PHASE 2 heading that runs only after approval;
+- requires the PHASE 1 artifact paths and the ADR rule in `AGENTS.md` and in every PHASE 1 section, the required headings in each `docs/templates/` file, and a valid `- Status:` line and unique number for every ADR in `docs/adr/`;
 - runs Bash syntax checks and shellcheck when installed.
 
 `scripts/test-gemini-policy.mjs` loads the Gemini policy example through Gemini CLI's own loader and engine, fails on any loader error, and asserts deny/allow decisions for wrapped and benign commands. Locally it runs when Gemini CLI is installed (or `GEMINI_CLI_DIR` points at it) and is skipped otherwise.

@@ -1,6 +1,6 @@
 # ADR 0002: PHASE 1 produces a spec, a design, ADRs and a plan at fixed project paths
 
-- Status: Proposed
+- Status: Accepted (approved 2026-10-12)
 - Date: 2026-10-12
 - Spec: [../specs/2026-10-12-phase1-artifacts-spec.md](../specs/2026-10-12-phase1-artifacts-spec.md)
 - Design: [../designs/2026-10-12-phase1-artifacts-design.md](../designs/2026-10-12-phase1-artifacts-design.md)

@@ -1,6 +1,6 @@
 # Plan: PHASE 1 artifact set (spec, design, ADR, plan)
 
-- Status: Awaiting approval
+- Status: Approved (2026-10-12)
 - Date: 2026-10-12
 - Spec: [../specs/2026-10-12-phase1-artifacts-spec.md](../specs/2026-10-12-phase1-artifacts-spec.md)
 - Design: [../designs/2026-10-12-phase1-artifacts-design.md](../designs/2026-10-12-phase1-artifacts-design.md)

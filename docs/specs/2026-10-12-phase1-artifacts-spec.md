@@ -1,6 +1,6 @@
 # Spec: PHASE 1 produces spec, design, ADR and plan
 
-- Status: Draft (awaiting approval)
+- Status: Approved (2026-10-12)
 - Date: 2026-10-12
 - Design: [../designs/2026-10-12-phase1-artifacts-design.md](../designs/2026-10-12-phase1-artifacts-design.md)
 - ADR: [../adr/0002-phase1-artifact-set.md](../adr/0002-phase1-artifact-set.md)

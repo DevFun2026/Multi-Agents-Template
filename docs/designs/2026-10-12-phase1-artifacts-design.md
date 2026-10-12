@@ -1,6 +1,6 @@
 # Design: PHASE 1 artifact set
 
-- Status: Draft (awaiting approval)
+- Status: Approved (2026-10-12)
 - Date: 2026-10-12
 - Spec: [../specs/2026-10-12-phase1-artifacts-spec.md](../specs/2026-10-12-phase1-artifacts-spec.md)
 - ADRs: [../adr/0002-phase1-artifact-set.md](../adr/0002-phase1-artifact-set.md)
@@ -40,7 +40,7 @@ The new checks are:
 - **AGENTS.md:**
   - mentions `docs/specs/`, `docs/designs/`, `docs/adr/`, `docs/plans/` and `docs/templates/`;
   - contains the ADR trigger sentence marker `An ADR is required`.
-- **Each start prompt:** the text between the PHASE 1 heading and the PHASE 2 heading contains `spec`, `design`, `ADR` and `plan` as words.
+- **Each start prompt:** the text between the PHASE 1 heading and the PHASE 2 heading contains the four artifact paths `docs/specs/`, `docs/designs/`, `docs/adr/` and `docs/plans/`. (Implementation note: the design first proposed checking for the words spec/design/ADR/plan. Paths were used instead because the existing prompts already contained the word "design" in another sense, so a word check would have passed without the requirement.)
 - **Templates:** `docs/templates/{spec,design,adr,plan}.md` are added to `REQUIRED`, and each must contain its required `## ` headings:
   - spec: `Problem`, `Goals and success criteria`, `Scope`, `Non-goals`, `Requirements`, `Acceptance criteria`, `Open questions`;
   - design: `Overview`, `Components`, `Alternatives considered`, `Risks`, `Test strategy`;
@@ -52,8 +52,8 @@ Mutation cases, one per check:
 
 - AGENTS.md drops the `docs/adr/` path;
 - AGENTS.md drops the ADR trigger;
-- a prompt drops `design` from PHASE 1;
-- a prompt drops `ADR` from PHASE 1;
+- a prompt drops the `docs/designs/` path from PHASE 1;
+- a prompt drops the `docs/adr/` path from PHASE 1;
 - a template is deleted;
 - a template loses a required heading;
 - an ADR has a bad status;
