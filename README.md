@@ -2,6 +2,8 @@
 
 A multi-harness project template for cost-aware research and software development with **Codex**, **Claude Code**, and **Gemini CLI**.
 
+**Architecture overview:** https://devfun2026.github.io/Multi-Agents-Template/architecture.html (source: `docs/architecture.html`, published by GitHub Pages from `main:/docs`).
+
 The main-session model is the controller/judge. Cheaper workers handle bounded work; the main session keeps architecture, synthesis, conflict resolution, high-risk verification, and final decisions.
 
 ## Skill stack
