@@ -18,7 +18,9 @@ Use Superpowers for workflow, ECC for specialist research/security/verification,
 OBJECTIVE:
 [PASTE REQUEST HERE]
 
-PHASE 1 — CLARIFY AND PLAN (no file edits, no implementer):
+If the objective needs no file changes (research, review, a question), do the read-only work and report; the approval stop below applies only to work that writes.
+
+PHASE 1 — CLARIFY AND PLAN (no file edits except the plan/spec files, no implementer):
 1. Invoke the Superpowers brainstorming skill and ask me the questions that change the design.
 2. Use read-only workers only where their evidence informs the plan.
 3. Invoke the Superpowers writing-plans skill and save the plan. Include: success criteria, scope/non-goals, architecture decision, execution graph with read/write classification, worker roles, ordered tasks with exact files and tests, verification plan, risks, open questions.

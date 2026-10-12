@@ -99,7 +99,7 @@ MAIN
 MAIN -> evidence reconciliation -> risk-ranked conclusion
 ```
 
-Examples 2 and 3 write files, so the planning gate in AGENTS.md section 9 applies: the controller clarifies with `brainstorming`, writes the plan with `writing-plans`, and stops until the user approves it. Examples 1 and 4 are read-only and need no approval stop.
+Examples 2 and 3 write files, so the planning gate (AGENTS.md section 9) applies: the controller clarifies with `brainstorming`, writes the plan with `writing-plans`, and stops until the user approves it. Examples 1 and 4 are read-only and need no approval stop.
 
 ## 5. When not to spawn
 

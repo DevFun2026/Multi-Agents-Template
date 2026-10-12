@@ -381,6 +381,56 @@ config_file = "agents/docs.toml"
             lambda s: s.replace("writing-plans", "planning"),
         ),
     ),
+    (
+        "PHASE 2 heading must wait for approval",
+        lambda root: mutate_text(
+            root,
+            "prompts/codex-session-start.md",
+            lambda s: s.replace(" (only after I approve the plan)", ""),
+        ),
+    ),
+    (
+        "PHASE 1 heading must forbid edits",
+        lambda root: mutate_text(
+            root,
+            "prompts/claude-session-start.md",
+            lambda s: s.replace("(no file edits except the plan/spec files, no implementer)", "(edit as needed)"),
+        ),
+    ),
+    (
+        "approval stop outside PHASE 1 is rejected",
+        lambda root: mutate_text(
+            root,
+            "prompts/claude-session-start.md",
+            lambda s: s.replace("then STOP and wait for explicit user approval", "then continue").replace(
+                "OBJECTIVE:", "STOP and wait for explicit user approval.\n\nOBJECTIVE:"
+            ),
+        ),
+    ),
+    (
+        "harness adapter must reference the planning gate",
+        lambda root: mutate_text(
+            root,
+            "GEMINI.md",
+            lambda s: s.replace("planning gate", "workflow"),
+        ),
+    ),
+    (
+        "codex developer_instructions must reference the planning gate",
+        lambda root: mutate_text(
+            root,
+            ".codex/config.toml",
+            lambda s: s.replace("planning gate", "workflow"),
+        ),
+    ),
+    (
+        "stale planning gate section number is rejected",
+        lambda root: mutate_text(
+            root,
+            "CLAUDE.md",
+            lambda s: s.replace("planning gate (section 9)", "planning gate (section 10)"),
+        ),
+    ),
 
     (
         "text files require final newline",
