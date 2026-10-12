@@ -573,6 +573,8 @@ START_PROMPTS = (
 )
 PHASE_1_HEADING = re.compile(r"^PHASE 1\b.*\bno file edits\b.*$", re.MULTILINE)
 PHASE_2_HEADING = re.compile(r"^PHASE 2\b.*\bonly after\b.*$", re.MULTILINE)
+# Gate references must use the form "planning gate (section N)" or
+# "planning gate (AGENTS.md section N)" so renumbering cannot leave them stale.
 GATE_SECTION_REF = re.compile(r"planning gate \((?:AGENTS\.md )?section (\d+)\)", re.IGNORECASE)
 
 gate_heading = re.search(r"^## (\d+)\. Planning gate\b", agents_policy, re.MULTILINE)

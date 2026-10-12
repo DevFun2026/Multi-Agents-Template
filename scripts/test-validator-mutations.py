@@ -109,6 +109,15 @@ def replace_first_policy_regex(root: Path, new_regex: str) -> None:
     mutate_text(root, GEMINI_POLICY, edit)
 
 
+def move_phase_2_before_phase_1(text: str) -> str:
+    phase_1 = text.index("PHASE 1 —")
+    phase_2 = text.index("PHASE 2 —")
+    block_end = text.index("```", phase_2)
+    block = text[phase_2:block_end].rstrip("\n") + "\n\n"
+    text = text[:phase_2] + text[block_end:]
+    return text[:phase_1] + block + text[phase_1:]
+
+
 cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "codex max_depth exactness",
@@ -366,12 +375,16 @@ config_file = "agents/docs.toml"
         ),
     ),
     (
-        "start prompt that executes before the approval stop is rejected",
+        "start prompt with PHASE headings swapped is rejected",
         lambda root: mutate_text(
             root,
             "prompts/session-start.md",
             lambda s: s.replace("PHASE 1", "PHASE X").replace("PHASE 2", "PHASE 1").replace("PHASE X", "PHASE 2"),
         ),
+    ),
+    (
+        "start prompt with the PHASE 2 block above PHASE 1 is rejected",
+        lambda root: mutate_text(root, "prompts/session-start.md", move_phase_2_before_phase_1),
     ),
     (
         "start prompt must name the writing-plans skill",
