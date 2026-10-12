@@ -862,7 +862,8 @@ footer {
 }
 .footer-links {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
 }
 .footer-links a {
   color: var(--text-secondary);
@@ -1013,6 +1014,17 @@ footer {
         <h3>Minimal Task Packets</h3>
         <p>
           Workers never inherit parent conversational history or full transcripts. The controller passes a compact packet: bounded objective, exact file paths, contract specifications, and verification criteria.
+        </p>
+      </div>
+
+      <!-- Bento 5 -->
+      <div class="bento-card col-12">
+        <div class="bento-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <h3>Plan-Approval Gate</h3>
+        <p>
+          No harness goes from objective straight to code. The controller clarifies with Superpowers <code style="color:var(--accent-cyan)">brainstorming</code>, writes the plan with <code style="color:var(--accent-cyan)">writing-plans</code>, then stops until the user explicitly approves it. Every start prompt encodes this as PHASE 1 (plan, stop) and PHASE 2 (execute), and the validator rejects any prompt that loses the stop.
         </p>
       </div>
     </div>
@@ -1468,6 +1480,13 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
     <a href="#workflow">Workflow</a>
     <a href="#security">Security</a>
     <a href="https://github.com/DevFun2026/Multi-Agents-Template">GitHub Repository</a>
+  </div>
+  <div class="footer-links" aria-label="Reference docs">
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/AGENTS.md">AGENTS.md policy</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/ORCHESTRATION.md">Orchestration</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/HARNESSES.md">Harnesses</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/SESSION-EXAMPLES.md">Session examples</a>
+    <a href="https://github.com/DevFun2026/Multi-Agents-Template/blob/main/docs/UPSTREAMS.md">Upstreams</a>
   </div>
 </footer>
 
