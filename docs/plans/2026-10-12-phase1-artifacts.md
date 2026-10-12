@@ -63,3 +63,26 @@ The tasks run serially because all of them write to the same working tree. Only 
 
 - The design lists the risks: Superpowers default paths, heavier PHASE 1 for small tasks, and keyword-only checks.
 - There are no open questions. The spec/design split and the ADR trigger were decided by the user on 2026-10-12.
+
+## Deviations after approval
+
+These changes came from the fresh review. They stay inside the approved scope (the AGENTS.md, adapter, prompt and validator tasks) and change no requirement.
+
+- **Claude plan mode.** Plan mode only allows writing the plan file. AGENTS.md section 9 and CLAUDE.md now say:
+  - put the spec, design and ADR drafts in the plan;
+  - write them to their `docs/` paths as the first action after approval.
+- **Status lifecycle.** PHASE 2 now also sets the spec, design and plan to `Status: Approved`, not just the ADRs to `Accepted`.
+- **Wording fixes in AGENTS.md:**
+  - section 11 (UI design constraints) now matches the artifact contract;
+  - approval follows the summary plus the artifact paths;
+  - a plan change mid-execution updates the artifacts first;
+  - the completion report lists artifacts only when the gate applied.
+- **Validator hardening:**
+  - the gate-reference scan reads only `.md`/`.html` living docs, so a binary file no longer crashes it;
+  - the scan skips the dated record directories;
+  - misnamed ADR files are rejected;
+  - an unedited template status line is rejected;
+  - each prompt's PHASE 2 must accept the ADRs.
+
+  Three more mutation tests cover these checks.
+- **Prompt checks.** The validator checks the artifact paths in each prompt, not the words spec/design/ADR/plan (see the design's implementation note).

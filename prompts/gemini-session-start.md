@@ -28,7 +28,7 @@ PHASE 1 — CLARIFY AND PLAN (no file edits except the PHASE 1 artifacts, no imp
 5. Summarize the plan and list the path of every artifact, then STOP and wait for explicit user approval. Do not start PHASE 2 in the same turn.
 
 PHASE 2 — EXECUTE (only after I approve the plan):
-First set the task's ADRs to Status: Accepted. Delegate safely, verify important conclusions, and return the synthesized result rather than raw agent transcripts. If the plan must change materially, stop and ask again.
+First set the task's ADRs to Status: Accepted and its spec, design and plan to Status: Approved. Delegate safely, verify important conclusions, and return the synthesized result rather than raw agent transcripts. If the plan must change materially, stop and ask again.
 ```
 
 Use `/agents list` to confirm project agents are discovered. Use `/agents reload` after changing agent definitions in a running session.

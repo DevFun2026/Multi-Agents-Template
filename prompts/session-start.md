@@ -35,5 +35,5 @@ PHASE 1 — CLARIFY AND PLAN (no file edits except the PHASE 1 artifacts, no imp
 5. Summarize the plan and list the path of every artifact, then STOP and wait for explicit user approval. Do not start PHASE 2 in the same turn.
 
 PHASE 2 — EXECUTE (only after I approve the plan):
-First set the task's ADRs to Status: Accepted. Execute the approved plan, verify with objective evidence, and return the synthesized result, verification evidence, risks, and recommended next action—not raw worker transcripts. If the plan must change materially, stop and ask again.
+First set the task's ADRs to Status: Accepted and its spec, design and plan to Status: Approved. Execute the approved plan, verify with objective evidence, and return the synthesized result, verification evidence, risks, and recommended next action—not raw worker transcripts. If the plan must change materially, stop and ask again.
 ```

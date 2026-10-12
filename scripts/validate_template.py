@@ -617,9 +617,12 @@ for rel, text in gate_pointers.items():
 
 if gate_heading:
     gate_number = gate_heading.group(1)
+    # Living docs only: dated records (ADRs, plans, specs, designs) keep the
+    # wording they were approved with and are not rewritten on renumbering.
+    record_dirs = {ROOT / "docs" / name for name in ("adr", "plans", "specs", "designs")}
     for path in sorted({ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "GEMINI.md", ROOT / "README.md",
                         *ROOT.glob("docs/**/*"), *ROOT.glob("prompts/*.md")}):
-        if not path.is_file():
+        if not path.is_file() or path.suffix not in {".md", ".html"} or record_dirs & set(path.parents):
             continue
         for match in GATE_SECTION_REF.finditer(path.read_text(encoding="utf-8")):
             if match.group(1) != gate_number:
@@ -648,9 +651,14 @@ TEMPLATE_HEADINGS = {
         "Execution graph", "Tasks", "Verification", "Risks and open questions",
     ),
 }
+# One concrete status per ADR; an unedited template line ("Proposed | Accepted | ...")
+# does not count.
 ADR_STATUS = re.compile(
-    r"^- Status: (Proposed|Accepted|Deprecated|Superseded|Rejected)\b", re.MULTILINE
+    r"^- Status: (Proposed|Accepted|Deprecated|Superseded|Rejected)\b[^|\n]*$", re.MULTILINE
 )
+ADR_FILENAME = re.compile(r"^\d{4}-[a-z0-9][a-z0-9-]*\.md$")
+PHASE_2_ACCEPT_MARKER = "Status: Accepted"
+
 
 for required in (*ARTIFACT_DIRS, "docs/templates/", ADR_TRIGGER_MARKER):
     if required not in agents_policy:
@@ -666,6 +674,8 @@ for rel in START_PROMPTS:
     for required in ARTIFACT_DIRS:
         if required not in phase_1:
             fail(f"{rel}: PHASE 1 must name the {required} artifact")
+    if PHASE_2_ACCEPT_MARKER not in text[execute.start():]:
+        fail(f"{rel}: PHASE 2 must start by setting the task's ADRs to {PHASE_2_ACCEPT_MARKER!r}")
 
 for rel, headings in TEMPLATE_HEADINGS.items():
     path = ROOT / rel
@@ -677,8 +687,13 @@ for rel, headings in TEMPLATE_HEADINGS.items():
             fail(f"{rel}: template must contain the heading '## {heading}'")
 
 adr_numbers: dict[str, str] = {}
-for path in sorted((ROOT / "docs/adr").glob("[0-9][0-9][0-9][0-9]-*.md")):
+for path in sorted((ROOT / "docs/adr").glob("*")):
     rel = str(path.relative_to(ROOT))
+    if path.name == "README.md":
+        continue
+    if not ADR_FILENAME.match(path.name):
+        fail(f"{rel}: ADR files must be named NNNN-<kebab-title>.md")
+        continue
     if not ADR_STATUS.search(path.read_text(encoding="utf-8")):
         fail(f"{rel}: needs a '- Status:' line of Proposed, Accepted, Deprecated, Superseded or Rejected")
     number = path.name[:4]

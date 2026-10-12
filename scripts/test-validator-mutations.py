@@ -486,6 +486,28 @@ config_file = "agents/docs.toml"
             root / "docs/adr/0002-phase1-artifact-set.md", root / "docs/adr/0002-duplicate.md"
         ),
     ),
+    (
+        "misnamed ADR file is rejected",
+        lambda root: shutil.copy(
+            root / "docs/adr/0002-phase1-artifact-set.md", root / "docs/adr/0003_misnamed.md"
+        ),
+    ),
+    (
+        "unedited ADR template status is rejected",
+        lambda root: mutate_text(
+            root,
+            "docs/adr/0001-mandatory-planning-gate.md",
+            lambda s: s.replace("- Status: Accepted", "- Status: Proposed | Accepted | Rejected"),
+        ),
+    ),
+    (
+        "PHASE 2 must accept the task's ADRs",
+        lambda root: mutate_text(
+            root,
+            "prompts/codex-session-start.md",
+            lambda s: s.replace("First set the task's ADRs to Status: Accepted and its spec, design and plan to Status: Approved. ", ""),
+        ),
+    ),
 
     (
         "text files require final newline",
