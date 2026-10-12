@@ -16,4 +16,5 @@ Claude Code-specific behavior:
 - External researcher has web tools but no local file tools.
 - Security/UI reviewers have local tools but no dedicated web tools. Bash can still run network-capable binaries; project permissions deny common curl/wget commands, but this is not a complete network sandbox.
 - Do not spawn agents merely to maximize parallelism.
+- Apply the AGENTS.md planning gate (section 9) before any write or implementer spawn. If the session is in plan mode, the user approving the plan at ExitPlanMode counts as explicit approval.
 - Use Superpowers as process authority, ECC as specialist/verification capability, and UI UX Pro Max only for UI/UX work.

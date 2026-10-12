@@ -342,6 +342,47 @@ config_file = "agents/docs.toml"
     ),
 
     (
+        "AGENTS.md planning gate section is required",
+        lambda root: mutate_text(
+            root,
+            "AGENTS.md",
+            lambda s: s.replace(". Planning gate", ". Planning notes"),
+        ),
+    ),
+    (
+        "AGENTS.md planning gate must stop for approval",
+        lambda root: mutate_text(
+            root,
+            "AGENTS.md",
+            lambda s: s.replace("STOP and wait for explicit user approval", "Continue"),
+        ),
+    ),
+    (
+        "start prompt without an approval stop is rejected",
+        lambda root: mutate_text(
+            root,
+            "prompts/claude-session-start.md",
+            lambda s: s.replace("STOP and wait for explicit user approval", "Continue"),
+        ),
+    ),
+    (
+        "start prompt that executes before the approval stop is rejected",
+        lambda root: mutate_text(
+            root,
+            "prompts/session-start.md",
+            lambda s: s.replace("PHASE 1", "PHASE X").replace("PHASE 2", "PHASE 1").replace("PHASE X", "PHASE 2"),
+        ),
+    ),
+    (
+        "start prompt must name the writing-plans skill",
+        lambda root: mutate_text(
+            root,
+            "prompts/gemini-session-start.md",
+            lambda s: s.replace("writing-plans", "planning"),
+        ),
+    ),
+
+    (
         "text files require final newline",
         lambda root: (root / "AGENTS.md").write_text(
             (root / "AGENTS.md").read_text(encoding="utf-8").rstrip("\n"),

@@ -560,6 +560,38 @@ if "fork_turns" not in codex_prompt:
     fail("prompts/codex-session-start.md: must mention fork_turns")
 
 
+# Planning gate: no harness may go from objective straight to code. The
+# policy must define the gate and every start prompt must stop for approval
+# between its plan phase and its execution phase.
+PLANNING_STOP_MARKER = "STOP and wait for explicit user approval"
+PLANNING_SKILLS = ("brainstorming", "writing-plans")
+START_PROMPTS = (
+    "prompts/session-start.md",
+    "prompts/codex-session-start.md",
+    "prompts/claude-session-start.md",
+    "prompts/gemini-session-start.md",
+)
+
+if not re.search(r"^## \d+\. Planning gate\b", agents_policy, re.MULTILINE):
+    fail("AGENTS.md: must define a numbered '## N. Planning gate' section")
+for required in (*PLANNING_SKILLS, PLANNING_STOP_MARKER):
+    if required not in agents_policy:
+        fail(f"AGENTS.md: planning gate must mention {required!r}")
+
+for rel in START_PROMPTS:
+    text = read_text(rel)
+    for required in PLANNING_SKILLS:
+        if required not in text:
+            fail(f"{rel}: must name the Superpowers {required!r} skill")
+    plan_at = text.find("PHASE 1")
+    stop_at = text.find(PLANNING_STOP_MARKER)
+    execute_at = text.find("PHASE 2")
+    if plan_at < 0 or stop_at < 0 or execute_at < 0:
+        fail(f"{rel}: must contain PHASE 1, {PLANNING_STOP_MARKER!r}, and PHASE 2")
+    elif not plan_at < stop_at < execute_at:
+        fail(f"{rel}: the approval stop must sit between PHASE 1 and PHASE 2")
+
+
 # Claude
 claude_settings = parse_json(".claude/settings.json")
 claude_env = claude_settings.get("env")

@@ -11,7 +11,11 @@ MAIN CONTROLLER
   |
   +-- independent read-only tasks -> parallel workers when useful
   |
-  +-- workspace-writing tasks
+  +-- planning gate (AGENTS.md section 9)
+  |     brainstorming -> read-only evidence -> writing-plans
+  |     -> STOP until the user explicitly approves the plan
+  |
+  +-- workspace-writing tasks (only after approval)
         |
         +-- isolated worktrees/workspaces -> may parallelize carefully
         |
@@ -21,6 +25,17 @@ MAIN CONTROLLER
   -> objective verification
   -> main synthesis/final decision
 ```
+
+## Planning gate
+
+No harness goes from objective straight to code. For any non-trivial task that writes files, the controller:
+
+1. clarifies requirements with the Superpowers `brainstorming` skill;
+2. gathers read-only evidence when it informs the plan;
+3. writes the plan with the Superpowers `writing-plans` skill;
+4. stops and waits for explicit user approval before any write or implementer spawn.
+
+The start prompts in `prompts/` encode this as PHASE 1 (plan, then stop) and PHASE 2 (execute after approval). `scripts/validate_template.py` fails if a start prompt loses the stop between the two phases.
 
 ## Codex context/model routing
 

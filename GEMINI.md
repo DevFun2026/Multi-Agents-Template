@@ -14,6 +14,7 @@ Gemini CLI-specific behavior:
 - `.gemini/settings.json` enables worktree support for separate top-level sessions; it does not make local subagents automatically get their own worktrees.
 - For truly parallel write work, start separate top-level Gemini sessions in separate worktrees.
 - Gemini subagents are one level deep by design.
+- Apply the AGENTS.md planning gate (section 9) before any write or implementer spawn, even if Gemini's built-in behavior prefers to act immediately.
 - External researcher has web tools but no local file tools.
 - Security/UI reviewers have local tools but no dedicated web tools. Their shell can still launch network-capable commands; Gemini 0.62.0 requires a user-tier policy for enforceable curl/wget denial because workspace policies are currently non-functional. See `examples/gemini-user-policies/reviewer-network-deny.toml`.
 - Main Gemini must re-evaluate high-risk architecture, security conclusions, and conflicting evidence.
