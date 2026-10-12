@@ -25,5 +25,14 @@ The main controller—not a majority vote of workers—makes the final decision.
 OBJECTIVE:
 [PASTE THE ACTUAL REQUEST HERE]
 
-First determine the execution graph, read/write classification, relevant skills, worker roles, and cost tiers. Then execute and return the synthesized result, verification evidence, risks, and recommended next action—not raw worker transcripts.
+If the objective needs no file changes (research, review, a question), do the read-only work and report; the approval stop below applies only to work that writes.
+
+PHASE 1 — CLARIFY AND PLAN (no file edits except the plan/spec files, no implementer):
+1. Invoke the Superpowers brainstorming skill and ask me the questions that change the design.
+2. Run read-only investigation (explorer/researcher) only where it informs the plan.
+3. Invoke the Superpowers writing-plans skill and save the plan. Include: success criteria, scope/non-goals, architecture decision, execution graph with read/write classification, worker roles and cost tiers, ordered tasks with exact files and tests, verification plan, risks, open questions.
+4. Summarize the plan and give its path, then STOP and wait for explicit user approval. Do not start PHASE 2 in the same turn.
+
+PHASE 2 — EXECUTE (only after I approve the plan):
+Execute the approved plan, verify with objective evidence, and return the synthesized result, verification evidence, risks, and recommended next action—not raw worker transcripts. If the plan must change materially, stop and ask again.
 ```

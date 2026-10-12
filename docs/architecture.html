@@ -1366,7 +1366,7 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
     <div class="section-header">
       <div class="section-tag">Execution Lifecycle</div>
       <h2 class="section-title">Standard Development Pipeline</h2>
-      <p class="section-desc">Steps highlighted in blue remain with the Main Controller; bounded steps are delegated.</p>
+      <p class="section-desc">Steps highlighted in blue remain with the Main Controller; bounded steps are delegated. Nothing is written before the user explicitly approves the plan (step 06).</p>
     </div>
 
     <div class="pipeline-steps">
@@ -1377,8 +1377,8 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
       </div>
       <div class="step-node">
         <div class="step-number">02</div>
-        <div class="step-name">Clarify & Plan</div>
-        <div class="step-owner">Superpowers</div>
+        <div class="step-name">Clarify</div>
+        <div class="step-owner">Superpowers brainstorming</div>
       </div>
       <div class="step-node">
         <div class="step-number">03</div>
@@ -1392,26 +1392,31 @@ Inspect the actual diff with read-only commands. No dedicated web tools are gran
       </div>
       <div class="step-node main-step">
         <div class="step-number">05 · CORE</div>
-        <div class="step-name">Decompose</div>
-        <div class="step-owner">Main Controller</div>
+        <div class="step-name">Decompose &amp; Plan</div>
+        <div class="step-owner">Main Controller · writing-plans</div>
       </div>
       <div class="step-node">
-        <div class="step-number">06</div>
+        <div class="step-number">06 · GATE</div>
+        <div class="step-name">Plan Approval</div>
+        <div class="step-owner">User (explicit)</div>
+      </div>
+      <div class="step-node">
+        <div class="step-number">07</div>
         <div class="step-name">Implementation</div>
         <div class="step-owner">implementer (Serial)</div>
       </div>
       <div class="step-node">
-        <div class="step-number">07</div>
+        <div class="step-number">08</div>
         <div class="step-name">Code Review</div>
         <div class="step-owner">reviewer (Fresh)</div>
       </div>
       <div class="step-node">
-        <div class="step-number">08</div>
+        <div class="step-number">09</div>
         <div class="step-name">Verification</div>
         <div class="step-owner">ECC / Test Runner</div>
       </div>
       <div class="step-node main-step">
-        <div class="step-number">09 · CORE</div>
+        <div class="step-number">10 · CORE</div>
         <div class="step-name">Final Judgment</div>
         <div class="step-owner">Main Controller</div>
       </div>

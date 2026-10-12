@@ -19,5 +19,14 @@ Use Superpowers for workflow, ECC for specialist research/security/verification,
 OBJECTIVE:
 [PASTE REQUEST HERE]
 
-Build the execution graph, route work by cost tier, execute, verify, and return only the synthesized result and important evidence.
+If the objective needs no file changes (research, review, a question), do the read-only work and report; the approval stop below applies only to work that writes.
+
+PHASE 1 — CLARIFY AND PLAN (no file edits except the plan/spec files, no implementer):
+1. Invoke the Superpowers brainstorming skill and ask me the questions that change the design.
+2. Use explorer/researcher children only where read-only evidence informs the plan.
+3. Invoke the Superpowers writing-plans skill and save the plan. Include: success criteria, scope/non-goals, architecture decision, execution graph with read/write classification, child roles with model/effort tiers, ordered tasks with exact files and tests, verification plan, risks, open questions.
+4. Summarize the plan and give its path, then STOP and wait for explicit user approval. Do not start PHASE 2 in the same turn.
+
+PHASE 2 — EXECUTE (only after I approve the plan):
+Route work by cost tier, execute, verify, and return only the synthesized result and important evidence. If the plan must change materially, stop and ask again.
 ```

@@ -560,6 +560,71 @@ if "fork_turns" not in codex_prompt:
     fail("prompts/codex-session-start.md: must mention fork_turns")
 
 
+# Planning gate: no harness may go from objective straight to code. The
+# policy must define the gate, every adapter must point at it, and every start
+# prompt must stop for approval inside PHASE 1, before the PHASE 2 heading.
+PLANNING_STOP_MARKER = "STOP and wait for explicit user approval"
+PLANNING_SKILLS = ("brainstorming", "writing-plans")
+START_PROMPTS = (
+    "prompts/session-start.md",
+    "prompts/codex-session-start.md",
+    "prompts/claude-session-start.md",
+    "prompts/gemini-session-start.md",
+)
+PHASE_1_HEADING = re.compile(r"^PHASE 1\b.*\bno file edits\b.*$", re.MULTILINE)
+PHASE_2_HEADING = re.compile(r"^PHASE 2\b.*\bonly after\b.*$", re.MULTILINE)
+# Gate references must use the form "planning gate (section N)" or
+# "planning gate (AGENTS.md section N)" so renumbering cannot leave them stale.
+GATE_SECTION_REF = re.compile(r"planning gate \((?:AGENTS\.md )?section (\d+)\)", re.IGNORECASE)
+
+gate_heading = re.search(r"^## (\d+)\. Planning gate\b", agents_policy, re.MULTILINE)
+if not gate_heading:
+    fail("AGENTS.md: must define a numbered '## N. Planning gate' section")
+for required in (*PLANNING_SKILLS, PLANNING_STOP_MARKER):
+    if required not in agents_policy:
+        fail(f"AGENTS.md: planning gate must mention {required!r}")
+
+for rel in START_PROMPTS:
+    text = read_text(rel)
+    for required in PLANNING_SKILLS:
+        if required not in text:
+            fail(f"{rel}: must name the Superpowers {required!r} skill")
+    plan = PHASE_1_HEADING.search(text)
+    execute = PHASE_2_HEADING.search(text)
+    if not plan:
+        fail(f"{rel}: needs a 'PHASE 1' heading line that forbids file edits ('no file edits')")
+    if not execute:
+        fail(f"{rel}: needs a 'PHASE 2' heading line that runs 'only after' approval")
+    if plan and execute:
+        if plan.start() > execute.start():
+            fail(f"{rel}: PHASE 1 must come before PHASE 2")
+        elif PLANNING_STOP_MARKER not in text[plan.end():execute.start()]:
+            fail(f"{rel}: PHASE 1 must end with {PLANNING_STOP_MARKER!r} before the PHASE 2 heading")
+
+codex_instructions = codex.get("developer_instructions", "")
+gate_pointers = {
+    "CLAUDE.md": read_text("CLAUDE.md"),
+    "GEMINI.md": read_text("GEMINI.md"),
+    ".codex/config.toml developer_instructions": codex_instructions if isinstance(codex_instructions, str) else "",
+}
+for rel, text in gate_pointers.items():
+    if "planning gate" not in text.lower():
+        fail(f"{rel}: must point at the AGENTS.md planning gate")
+
+if gate_heading:
+    gate_number = gate_heading.group(1)
+    for path in sorted({ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "GEMINI.md", ROOT / "README.md",
+                        *ROOT.glob("docs/*"), *ROOT.glob("prompts/*.md")}):
+        if not path.is_file():
+            continue
+        for match in GATE_SECTION_REF.finditer(path.read_text(encoding="utf-8")):
+            if match.group(1) != gate_number:
+                fail(
+                    f"{path.relative_to(ROOT)}: planning gate reference says section "
+                    f"{match.group(1)}, but AGENTS.md defines it as section {gate_number}"
+                )
+
+
 # Claude
 claude_settings = parse_json(".claude/settings.json")
 claude_env = claude_settings.get("env")

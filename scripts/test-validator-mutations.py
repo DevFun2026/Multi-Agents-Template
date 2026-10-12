@@ -109,6 +109,15 @@ def replace_first_policy_regex(root: Path, new_regex: str) -> None:
     mutate_text(root, GEMINI_POLICY, edit)
 
 
+def move_phase_2_before_phase_1(text: str) -> str:
+    phase_1 = text.index("PHASE 1 —")
+    phase_2 = text.index("PHASE 2 —")
+    block_end = text.index("```", phase_2)
+    block = text[phase_2:block_end].rstrip("\n") + "\n\n"
+    text = text[:phase_2] + text[block_end:]
+    return text[:phase_1] + block + text[phase_1:]
+
+
 cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "codex max_depth exactness",
@@ -339,6 +348,101 @@ config_file = "agents/docs.toml"
     (
         "gemini policy regex must compile",
         lambda root: replace_first_policy_regex(root, r'[^\s"*/(curl|wget'),
+    ),
+
+    (
+        "AGENTS.md planning gate section is required",
+        lambda root: mutate_text(
+            root,
+            "AGENTS.md",
+            lambda s: s.replace(". Planning gate", ". Planning notes"),
+        ),
+    ),
+    (
+        "AGENTS.md planning gate must stop for approval",
+        lambda root: mutate_text(
+            root,
+            "AGENTS.md",
+            lambda s: s.replace("STOP and wait for explicit user approval", "Continue"),
+        ),
+    ),
+    (
+        "start prompt without an approval stop is rejected",
+        lambda root: mutate_text(
+            root,
+            "prompts/claude-session-start.md",
+            lambda s: s.replace("STOP and wait for explicit user approval", "Continue"),
+        ),
+    ),
+    (
+        "start prompt with PHASE headings swapped is rejected",
+        lambda root: mutate_text(
+            root,
+            "prompts/session-start.md",
+            lambda s: s.replace("PHASE 1", "PHASE X").replace("PHASE 2", "PHASE 1").replace("PHASE X", "PHASE 2"),
+        ),
+    ),
+    (
+        "start prompt with the PHASE 2 block above PHASE 1 is rejected",
+        lambda root: mutate_text(root, "prompts/session-start.md", move_phase_2_before_phase_1),
+    ),
+    (
+        "start prompt must name the writing-plans skill",
+        lambda root: mutate_text(
+            root,
+            "prompts/gemini-session-start.md",
+            lambda s: s.replace("writing-plans", "planning"),
+        ),
+    ),
+    (
+        "PHASE 2 heading must wait for approval",
+        lambda root: mutate_text(
+            root,
+            "prompts/codex-session-start.md",
+            lambda s: s.replace(" (only after I approve the plan)", ""),
+        ),
+    ),
+    (
+        "PHASE 1 heading must forbid edits",
+        lambda root: mutate_text(
+            root,
+            "prompts/claude-session-start.md",
+            lambda s: s.replace("(no file edits except the plan/spec files, no implementer)", "(edit as needed)"),
+        ),
+    ),
+    (
+        "approval stop outside PHASE 1 is rejected",
+        lambda root: mutate_text(
+            root,
+            "prompts/claude-session-start.md",
+            lambda s: s.replace("then STOP and wait for explicit user approval", "then continue").replace(
+                "OBJECTIVE:", "STOP and wait for explicit user approval.\n\nOBJECTIVE:"
+            ),
+        ),
+    ),
+    (
+        "harness adapter must reference the planning gate",
+        lambda root: mutate_text(
+            root,
+            "GEMINI.md",
+            lambda s: s.replace("planning gate", "workflow"),
+        ),
+    ),
+    (
+        "codex developer_instructions must reference the planning gate",
+        lambda root: mutate_text(
+            root,
+            ".codex/config.toml",
+            lambda s: s.replace("planning gate", "workflow"),
+        ),
+    ),
+    (
+        "stale planning gate section number is rejected",
+        lambda root: mutate_text(
+            root,
+            "CLAUDE.md",
+            lambda s: s.replace("planning gate (section 9)", "planning gate (section 10)"),
+        ),
     ),
 
     (

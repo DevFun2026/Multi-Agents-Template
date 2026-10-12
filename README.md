@@ -153,6 +153,13 @@ For a stronger boundary, use Claude Code's Bash sandbox/network controls (with a
 
 ## Start prompts
 
+Every start prompt runs in two phases:
+
+- **PHASE 1** — clarify with Superpowers `brainstorming`, gather read-only evidence, write the plan with `writing-plans`, then stop and wait for explicit approval.
+- **PHASE 2** — execute the approved plan, verify, and report.
+
+This is the planning gate (AGENTS.md section 9). Reply with an explicit approval (for example "approved") to start PHASE 2, or say "skip planning" for a task that does not need it.
+
 Use:
 
 ```text
@@ -188,6 +195,7 @@ Validation now:
 - mirrors Gemini's strict local-agent frontmatter keys/tool names and role-specific tool sets;
 - treats `*`, MCP tools (`mcp__…` in Claude; `mcp_…`, `read_mcp_resource`, `list_mcp_resources` in Gemini) and Gemini `discovered_tool_…` entries as network-capable. A role with any network-capable tool may only add a small set of known-inert tools (todo/plan/ask-user style); every other tool, including unknown or future tools, counts as local-capable;
 - mirrors Gemini's `commandRegex` safety check (compile, length, nested-quantifier heuristic) and rejects `^` anchors and doubled backslashes before a character class (such as `\\s`) in the policy example;
+- requires the `AGENTS.md` planning gate, a pointer to it from `CLAUDE.md`, `GEMINI.md` and Codex `developer_instructions`, matching `planning gate (section N)` references, and in every start prompt a PHASE 1 heading that forbids edits, the approval stop, and a PHASE 2 heading that runs only after approval;
 - runs Bash syntax checks and shellcheck when installed.
 
 `scripts/test-gemini-policy.mjs` loads the Gemini policy example through Gemini CLI's own loader and engine, fails on any loader error, and asserts deny/allow decisions for wrapped and benign commands. Locally it runs when Gemini CLI is installed (or `GEMINI_CLI_DIR` points at it) and is skipped otherwise.
