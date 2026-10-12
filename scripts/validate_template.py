@@ -60,6 +60,10 @@ REQUIRED = [
     "docs/ORCHESTRATION.md",
     "docs/SESSION-EXAMPLES.md",
     "docs/UPSTREAMS.md",
+    "docs/templates/spec.md",
+    "docs/templates/design.md",
+    "docs/templates/adr.md",
+    "docs/templates/plan.md",
     "scripts/bootstrap.sh",
     "scripts/verify-template.sh",
     "scripts/test-bootstrap.py",
@@ -613,9 +617,12 @@ for rel, text in gate_pointers.items():
 
 if gate_heading:
     gate_number = gate_heading.group(1)
+    # Living docs only: dated records (ADRs, plans, specs, designs) keep the
+    # wording they were approved with and are not rewritten on renumbering.
+    record_dirs = {ROOT / "docs" / name for name in ("adr", "plans", "specs", "designs")}
     for path in sorted({ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "GEMINI.md", ROOT / "README.md",
-                        *ROOT.glob("docs/*"), *ROOT.glob("prompts/*.md")}):
-        if not path.is_file():
+                        *ROOT.glob("docs/**/*"), *ROOT.glob("prompts/*.md")}):
+        if not path.is_file() or path.suffix not in {".md", ".html"} or record_dirs & set(path.parents):
             continue
         for match in GATE_SECTION_REF.finditer(path.read_text(encoding="utf-8")):
             if match.group(1) != gate_number:
@@ -623,6 +630,76 @@ if gate_heading:
                     f"{path.relative_to(ROOT)}: planning gate reference says section "
                     f"{match.group(1)}, but AGENTS.md defines it as section {gate_number}"
                 )
+
+
+# PHASE 1 artifacts: the gate must leave a spec, a design, ADRs for
+# architecture decisions, and a plan at fixed project paths, built from the
+# templates in docs/templates/ (ADR 0002).
+ARTIFACT_DIRS = ("docs/specs/", "docs/designs/", "docs/adr/", "docs/plans/")
+ADR_TRIGGER_MARKER = "An ADR is required"
+TEMPLATE_HEADINGS = {
+    "docs/templates/spec.md": (
+        "Problem", "Goals and success criteria", "Scope", "Non-goals",
+        "Requirements", "Acceptance criteria", "Open questions",
+    ),
+    "docs/templates/design.md": (
+        "Overview", "Components", "Alternatives considered", "Risks", "Test strategy",
+    ),
+    "docs/templates/adr.md": ("Context", "Decision", "Alternatives considered", "Consequences"),
+    "docs/templates/plan.md": (
+        "Objective and success criteria", "Scope and non-goals", "Architecture decision",
+        "Execution graph", "Tasks", "Verification", "Risks and open questions",
+    ),
+}
+# One concrete status per ADR; an unedited template line ("Proposed | Accepted | ...")
+# does not count.
+ADR_STATUS = re.compile(
+    r"^- Status: (Proposed|Accepted|Deprecated|Superseded|Rejected)\b[^|\n]*$", re.MULTILINE
+)
+ADR_FILENAME = re.compile(r"^\d{4}-[a-z0-9][a-z0-9-]*\.md$")
+PHASE_2_ACCEPT_MARKER = "Status: Accepted"
+
+
+for required in (*ARTIFACT_DIRS, "docs/templates/", ADR_TRIGGER_MARKER):
+    if required not in agents_policy:
+        fail(f"AGENTS.md: planning gate must define PHASE 1 artifacts ({required!r} missing)")
+
+for rel in START_PROMPTS:
+    text = read_text(rel)
+    plan = PHASE_1_HEADING.search(text)
+    execute = PHASE_2_HEADING.search(text)
+    if not (plan and execute and plan.start() < execute.start()):
+        continue
+    phase_1 = text[plan.start():execute.start()]
+    for required in ARTIFACT_DIRS:
+        if required not in phase_1:
+            fail(f"{rel}: PHASE 1 must name the {required} artifact")
+    if PHASE_2_ACCEPT_MARKER not in text[execute.start():]:
+        fail(f"{rel}: PHASE 2 must start by setting the task's ADRs to {PHASE_2_ACCEPT_MARKER!r}")
+
+for rel, headings in TEMPLATE_HEADINGS.items():
+    path = ROOT / rel
+    if not path.is_file():
+        continue
+    text = path.read_text(encoding="utf-8")
+    for heading in headings:
+        if not re.search(rf"^## {re.escape(heading)}\s*$", text, re.MULTILINE):
+            fail(f"{rel}: template must contain the heading '## {heading}'")
+
+adr_numbers: dict[str, str] = {}
+for path in sorted((ROOT / "docs/adr").glob("*")):
+    rel = str(path.relative_to(ROOT))
+    if path.name == "README.md":
+        continue
+    if not ADR_FILENAME.match(path.name):
+        fail(f"{rel}: ADR files must be named NNNN-<kebab-title>.md")
+        continue
+    if not ADR_STATUS.search(path.read_text(encoding="utf-8")):
+        fail(f"{rel}: needs a '- Status:' line of Proposed, Accepted, Deprecated, Superseded or Rejected")
+    number = path.name[:4]
+    if number in adr_numbers:
+        fail(f"{rel}: ADR number {number} is already used by {adr_numbers[number]}")
+    adr_numbers[number] = rel
 
 
 # Claude

@@ -12,7 +12,8 @@ MAIN CONTROLLER
   +-- independent read-only tasks -> parallel workers when useful
   |
   +-- planning gate (AGENTS.md section 9)
-  |     brainstorming -> read-only evidence -> writing-plans
+  |     brainstorming -> spec -> read-only evidence
+  |     -> design + ADRs -> writing-plans -> plan
   |     -> STOP until the user explicitly approves the plan
   |
   +-- workspace-writing tasks (only after approval)
@@ -30,10 +31,13 @@ MAIN CONTROLLER
 
 No harness goes from objective straight to code. For any non-trivial task that writes files, the controller:
 
-1. clarifies requirements with the Superpowers `brainstorming` skill;
+1. clarifies requirements with the Superpowers `brainstorming` skill and writes the spec (`docs/specs/`);
 2. gathers read-only evidence when it informs the plan;
-3. writes the plan with the Superpowers `writing-plans` skill;
-4. stops and waits for explicit user approval before any write or implementer spawn.
+3. writes the design (`docs/designs/`) and one ADR per architecture decision (`docs/adr/`, Status: Proposed);
+4. writes the plan with the Superpowers `writing-plans` skill (`docs/plans/`);
+5. stops and waits for explicit user approval before any other write or implementer spawn. Approval covers the whole set, and the ADRs then become Accepted.
+
+Templates for all four artifacts live in `docs/templates/`.
 
 The start prompts in `prompts/` encode this as PHASE 1 (plan, then stop) and PHASE 2 (execute after approval). `scripts/validate_template.py` fails if a start prompt loses the stop between the two phases.
 

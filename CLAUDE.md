@@ -16,5 +16,5 @@ Claude Code-specific behavior:
 - External researcher has web tools but no local file tools.
 - Security/UI reviewers have local tools but no dedicated web tools. Bash can still run network-capable binaries; project permissions deny common curl/wget commands, but this is not a complete network sandbox.
 - Do not spawn agents merely to maximize parallelism.
-- Apply the AGENTS.md planning gate (section 9) before any write or implementer spawn. If the session is in plan mode, the user approving the plan at ExitPlanMode counts as explicit approval.
+- Apply the AGENTS.md planning gate (section 9) before any write or implementer spawn; PHASE 1 leaves a spec, a design, ADRs for architecture decisions, and a plan under `docs/`. If the session is in plan mode, the user approving the plan at ExitPlanMode counts as explicit approval. Plan mode only lets you write the plan file, so put the spec, design and ADR drafts as sections of that plan; the first action after approval writes them to `docs/specs/`, `docs/designs/` and `docs/adr/`. Never skip them.
 - Use Superpowers as process authority, ECC as specialist/verification capability, and UI UX Pro Max only for UI/UX work.

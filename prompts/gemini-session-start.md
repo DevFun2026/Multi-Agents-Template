@@ -20,14 +20,15 @@ OBJECTIVE:
 
 If the objective needs no file changes (research, review, a question), do the read-only work and report; the approval stop below applies only to work that writes.
 
-PHASE 1 — CLARIFY AND PLAN (no file edits except the plan/spec files, no implementer):
-1. Invoke the Superpowers brainstorming skill and ask me the questions that change the design.
+PHASE 1 — CLARIFY AND PLAN (no file edits except the PHASE 1 artifacts, no implementer):
+1. Invoke the Superpowers brainstorming skill, ask me the questions that change the design, then write the spec to docs/specs/YYYY-MM-DD-<topic>-spec.md (template: docs/templates/spec.md).
 2. Use read-only workers only where their evidence informs the plan.
-3. Invoke the Superpowers writing-plans skill and save the plan. Include: success criteria, scope/non-goals, architecture decision, execution graph with read/write classification, worker roles, ordered tasks with exact files and tests, verification plan, risks, open questions.
-4. Summarize the plan and give its path, then STOP and wait for explicit user approval. Do not start PHASE 2 in the same turn.
+3. Write the design to docs/designs/YYYY-MM-DD-<topic>-design.md (template: docs/templates/design.md), plus one ADR per architecture decision in docs/adr/NNNN-<title>.md with Status: Proposed (template: docs/templates/adr.md). With no architecture decision, write "ADRs: none".
+4. Invoke the Superpowers writing-plans skill and write the plan to docs/plans/YYYY-MM-DD-<topic>.md (template: docs/templates/plan.md), linking the spec, design and ADRs. Include: success criteria, scope/non-goals, architecture decision, execution graph with read/write classification, worker roles, ordered tasks with exact files and tests, verification plan, risks, open questions.
+5. Summarize the plan and list the path of every artifact, then STOP and wait for explicit user approval. Do not start PHASE 2 in the same turn.
 
 PHASE 2 — EXECUTE (only after I approve the plan):
-Delegate safely, verify important conclusions, and return the synthesized result rather than raw agent transcripts. If the plan must change materially, stop and ask again.
+First set the task's ADRs to Status: Accepted and its spec, design and plan to Status: Approved. Delegate safely, verify important conclusions, and return the synthesized result rather than raw agent transcripts. If the plan must change materially, stop and ask again.
 ```
 
 Use `/agents list` to confirm project agents are discovered. Use `/agents reload` after changing agent definitions in a running session.
