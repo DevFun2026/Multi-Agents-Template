@@ -19,6 +19,8 @@ ADR 0003 put one vendored, hash-pinned skill at `.agents/skills/` with a Claude 
    - Claude Code: `disable-model-invocation: true` in `SKILL.md`.
    - Codex: `agents/openai.yaml` with `policy.allow_implicit_invocation: false`.
    - `agy`: no documented control; this is accepted as a known gap.
+
+   Update (2026-10-20, after acceptance): a probe with `agy` 1.4.2 showed that `agy` honours `disable-model-invocation: true` the same way Claude Code does. The gap is closed in practice, though still undocumented by `agy` (see `docs/HARNESSES.md`).
 4. The validator enforces the layout, the frontmatter, the Codex policy and the entry points. The undeclared-symlink rule covers both manifests.
 5. Ideas taken from other projects are credited in `docs/UPSTREAMS.md`. Text is written for this template, not copied.
 

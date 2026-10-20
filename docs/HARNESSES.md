@@ -138,13 +138,15 @@ Verified on 2026-10-20:
 | Codex 0.159.3 | listed by `codex debug prompt-input` |
 | `agy` 1.4.2 | listed by `agy -p "List the names of the agent skills available in this workspace."` |
 
-Project skills are explicit-only. Each harness invokes and enforces that differently:
+`agy` explicit-only behaviour, verified on 2026-10-20 with `agy` 1.4.2 in a probe repository: a skill with `disable-model-invocation: true` was missing from the model's skill list but ran when called as `/probe-a`; the same skill without the key was listed. `agy`'s own documentation does not mention the key.
+
+Project skills are explicit-only. They do not appear when you ask a harness to list its skills, because that list is what the model may choose from. Each harness invokes and enforces that as follows:
 
 | Harness | Invoke | Explicit-only control |
 |---|---|---|
 | Claude Code | `/handoff`, `/zoom-out`, `/explain`, `/cross-review codex` | `disable-model-invocation: true` in `SKILL.md` |
 | Codex | `$handoff` (or pick from `/skills`) | `agents/openai.yaml`: `policy.allow_implicit_invocation: false` |
-| `agy` | ask for the skill by name, e.g. "use the handoff skill" | none documented; `agy` may load these skills on its own |
+| `agy` | `/handoff` (also works in `agy -p "/handoff"`) | `disable-model-invocation: true` in `SKILL.md`, the same key as Claude Code: hidden from the model, still invocable by `/name` |
 
 ## Custom agent contract
 
