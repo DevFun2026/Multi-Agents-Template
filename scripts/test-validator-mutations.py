@@ -176,6 +176,18 @@ def write_session_artifact(root: Path, rel: str, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+# Fake secrets are assembled at run time so this file never holds a token-shaped literal.
+FAKE_SECRETS = {
+    "GitHub token": "gh" + "p_" + "A" * 36,
+    "Slack token": "xo" + "xb-" + "1" * 12,
+    "OpenAI-style key": "s" + "k-" + "B" * 24,
+    "Anthropic-style key": "s" + "k-ant-" + "C" * 12,
+    "Google API key": "AI" + "za" + "D" * 35,
+    "JWT": "ey" + "J" + "E" * 12 + ".ey" + "J" + "F" * 12 + ".sig",
+    "Bearer token": "Bear" + "er " + "G" * 24,
+}
+
+
 def corrupt_first_hash(skill: dict) -> None:
     first = sorted(skill["files"])[0]
     skill["files"][first] = "0" * 64
@@ -737,6 +749,51 @@ config_file = "agents/docs.toml"
         "handoff file name unsafe",
         lambda root: write_session_artifact(root, "docs/handoffs/notes.md", "# Notes\n"),
     ),
+    (
+        "handoff slug uppercase",
+        lambda root: write_session_artifact(root, "docs/handoffs/2026-10-20-120000-Plan.md", "# H\n"),
+    ),
+    (
+        "handoff nested file",
+        lambda root: write_session_artifact(root, "docs/handoffs/sub/2026-10-20-120000-x.md", "# H\n"),
+    ),
+    *[
+        (
+            f"handoff leaks {kind}",
+            lambda root, token=token: write_session_artifact(
+                root, "docs/handoffs/2026-10-20-120000-x.md", f"# Handoff\n\nvalue {token}\n"
+            ),
+        )
+        for kind, token in FAKE_SECRETS.items()
+    ],
+    (
+        "undeclared skill directory",
+        lambda root: write_session_artifact(
+            root, ".agents/skills/foo/SKILL.md", "---\nname: foo\ndescription: Foo.\n---\nBody\n"
+        ),
+    ),
+    (
+        "project skill invocation flag is yes",
+        lambda root: mutate_text(
+            root,
+            f"{PROJECT_SKILL}/SKILL.md",
+            lambda s: s.replace("disable-model-invocation: true", "disable-model-invocation: yes"),
+        ),
+    ),
+    (
+        "project skill missing description",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/SKILL.md", lambda s: s.replace("description:", "summary:", 1)
+        ),
+    ),
+    (
+        "project skill SKILL.md missing",
+        lambda root: (root / PROJECT_SKILL / "SKILL.md").unlink(),
+    ),
+    (
+        "project skill SKILL.md is a symlink",
+        lambda root: replace_with_symlink(root / PROJECT_SKILL / "SKILL.md", "../zoom-out/SKILL.md"),
+    ),
 ]
 
 # Vendored-skill cases must fail for their own rule, not an incidental error.
@@ -767,12 +824,20 @@ expected_messages: dict[str, str] = {
     "project skill entry retargeted": "must point to",
     "project skill dir is a symlink": "must be a real directory",
     "undeclared project skill symlink": "undeclared symlink",
-    "CONTEXT.md required": "CONTEXT.md",
+    "CONTEXT.md required": "missing required file: CONTEXT.md",
     "CONTEXT.md needs Language section": "## Language",
-    "context template required": "docs/templates/context.md",
+    "context template required": "missing required file: docs/templates/context.md",
     "handoff leaks AWS key": "possible secret",
     "review leaks private key": "possible secret",
     "handoff file name unsafe": "file name must match",
+    "handoff slug uppercase": "file name must match",
+    "handoff nested file": "file name must match",
+    **{f"handoff leaks {kind}": "possible secret" for kind in FAKE_SECRETS},
+    "undeclared skill directory": "undeclared skill directory",
+    "project skill invocation flag is yes": "the literal YAML boolean",
+    "project skill missing description": "non-empty description",
+    "project skill SKILL.md missing": "SKILL.md is required",
+    "project skill SKILL.md is a symlink": "must not be a symlink",
 }
 assert set(expected_messages) <= {name for name, _ in cases}, "expected_messages names an unknown case"
 

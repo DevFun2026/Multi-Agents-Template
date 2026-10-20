@@ -62,7 +62,7 @@ The validator also:
 
 ### cross-review flow
 
-1. **Resolve the plan.** Use the argument, or else the newest `docs/plans/*.md`. Collect the spec, design and ADRs the plan links to, plus `CONTEXT.md` and `AGENTS.md` section 9. List any that are missing.
+1. **Resolve the plan.** Use the argument, or else the newest `docs/plans/*.md`. Collect the spec, design and ADRs the plan links to, plus `CONTEXT.md`. Accept only validated repository-relative paths under `docs/{specs,designs,adr,plans}/` or a `CONTEXT.md`/`CONTEXT-MAP.md`. `AGENTS.md` is not copied, because Codex and `agy` would load it as instructions; the prompt states the gate rules instead. List any files that are missing or dropped.
 2. **Check the reviewer.** `<reviewer>` must be `claude`, `codex` or `agy`, and differ from the running harness. If it is missing or the same as the running harness, ask the user.
 3. **Build one self-contained prompt**, whatever the path. Lenses:
    - forward traceability (spec → design → ADR → plan) and backward drift;

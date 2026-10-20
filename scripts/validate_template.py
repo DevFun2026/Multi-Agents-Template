@@ -1006,6 +1006,10 @@ def check_project_skills() -> set[str]:
                 fail(f"{label}: {link_rel} must be a symlink to {target}")
             elif os.readlink(link) != target:
                 fail(f"{label}: {link_rel} must point to {target}, not {os.readlink(link)}")
+            elif link.parent.is_symlink() or link.parent.resolve() != ROOT.resolve() / Path(link_rel).parent:
+                fail(f"{label}: {link_rel} must sit in a real directory, not behind a symlink")
+            elif link.resolve() != (ROOT / path_rel).resolve():
+                fail(f"{label}: {link_rel} must resolve to {path_rel}")
             else:
                 declared.add(link_rel)
 
@@ -1017,13 +1021,22 @@ def check_project_skills() -> set[str]:
             fail(f"{label}: {path_rel} must not be reached through a symlinked parent")
             continue
 
+        for file_rel in ("SKILL.md", "agents/openai.yaml"):
+            if (skill_dir / file_rel).is_symlink():
+                fail(f"{label}: {path_rel}/{file_rel} must not be a symlink")
+        if not (skill_dir / "SKILL.md").is_file():
+            fail(f"{label}: {path_rel}/SKILL.md is required")
+            continue
         frontmatter = parse_frontmatter(f"{path_rel}/SKILL.md")
         if frontmatter.get("name") != skill_dir.name:
             fail(f"{label}: SKILL.md name must match the directory name {skill_dir.name!r}")
         if not isinstance(frontmatter.get("description"), str) or not frontmatter["description"].strip():
             fail(f"{label}: SKILL.md needs a non-empty description")
-        if frontmatter.get("disable-model-invocation") is not True:
-            fail(f"{label}: SKILL.md must set disable-model-invocation: true (a YAML boolean)")
+        # YAML 1.1 reads "yes"/"on" as true; other harnesses may not, so require the literal.
+        if frontmatter.get("disable-model-invocation") is not True or not re.search(
+            r"^disable-model-invocation: true[ \t]*$", read_text(f"{path_rel}/SKILL.md"), re.MULTILINE
+        ):
+            fail(f"{label}: SKILL.md must set disable-model-invocation: true (the literal YAML boolean)")
 
         openai_rel = f"{path_rel}/agents/openai.yaml"
         if not (ROOT / openai_rel).is_file():
@@ -1035,13 +1048,43 @@ def check_project_skills() -> set[str]:
             fail(f"{openai_rel}: invalid YAML: {exc}")
             continue
         policy = openai.get("policy") if isinstance(openai, dict) else None
-        if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
+        if (
+            not isinstance(policy, dict)
+            or policy.get("allow_implicit_invocation") is not False
+            or not re.search(r"^[ \t]+allow_implicit_invocation: false[ \t]*$", read_text(openai_rel), re.MULTILINE)
+        ):
             fail(f"{openai_rel}: policy must set allow_implicit_invocation: false")
 
     return declared
 
 
+def declared_skill_dirs() -> set[str]:
+    """Skill directories named by either manifest; malformed manifests are reported elsewhere."""
+    dirs: set[str] = set()
+    for rel, key in ((PROJECT_SKILLS_MANIFEST, "path"), (VENDORED_MANIFEST, "dest")):
+        try:
+            skills = json.loads((ROOT / rel).read_text(encoding="utf-8")).get("skills", [])
+        except (OSError, ValueError, AttributeError):
+            continue
+        for skill in skills if isinstance(skills, list) else []:
+            if isinstance(skill, dict) and isinstance(skill.get(key), str):
+                dirs.add(skill[key])
+    return dirs
+
+
 check_vendored_skills(check_project_skills())
+
+# Every real directory in a skill root must be a declared skill (ADR 0004), so
+# an undeclared skill cannot skip the explicit-only checks.
+_declared_dirs = declared_skill_dirs()
+for root_rel in VENDORED_SKILL_ROOTS:
+    skill_root = ROOT / root_rel
+    if not skill_root.is_dir() or skill_root.is_symlink():
+        continue
+    for entry in sorted(skill_root.iterdir()):
+        rel = entry.relative_to(ROOT).as_posix()
+        if entry.is_dir() and not entry.is_symlink() and rel not in _declared_dirs:
+            fail(f"undeclared skill directory {rel}: declare it in {PROJECT_SKILLS_MANIFEST} or {VENDORED_MANIFEST}")
 
 
 # CONTEXT.md is the domain glossary (ADR 0005).
@@ -1051,7 +1094,8 @@ for rel in ("CONTEXT.md", "docs/templates/context.md"):
 
 
 # Handoffs and cross-review reports are committed session artifacts
-# (ADR 0006): safe file names and no obvious secrets.
+# (ADR 0006): safe file names and no obvious secrets. The secret patterns are
+# a heuristic backstop, not a guarantee; the skills must redact first.
 SESSION_ARTIFACT_DIRS = ("docs/handoffs", "docs/reviews")
 SESSION_ARTIFACT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{6}-[a-z0-9-]+\.md$")
 SECRET_PATTERNS = (
@@ -1060,6 +1104,10 @@ SECRET_PATTERNS = (
     re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}"),
     re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"sk-ant-[A-Za-z0-9_-]{10,}"),
+    re.compile(r"AIza[0-9A-Za-z_-]{35}"),
+    re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\."),
+    re.compile(r"Bearer\s+[A-Za-z0-9._~+/-]{20,}=*"),
 )
 
 for dir_rel in SESSION_ARTIFACT_DIRS:

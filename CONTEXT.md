@@ -78,6 +78,7 @@ _Avoid_: second opinion, peer review
 
 - "agent" was used for the **Harness**, the **Controller** and a **Worker**. Resolution: say which one; use "agent" alone only for the general idea.
 - "parent" appears in the vendored `security-audit` skill. Inside that skill it means the **Controller**.
+- "subagent" is Claude Code's own name for a **Worker** and appears in harness-specific text (`CLAUDE.md`, `.claude/agents/`). Keep it there; use **Worker** in specs, plans and task packets.
 
 ## Example dialogue
 
