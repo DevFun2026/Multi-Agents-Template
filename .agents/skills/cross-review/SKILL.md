@@ -80,6 +80,7 @@ Take this path only when the user explicitly says to run the CLI, for example "r
 
    ```bash
    tmp_dir="$(mktemp -d)"; trap 'rm -rf "$tmp_dir"' EXIT
+   git -C "$tmp_dir" init -q   # some reviewer harnesses expect a repository
    # for each accepted path (already validated in step 2):
    #   mkdir -p "$tmp_dir/$(dirname -- "$path")" && cp -P -- "$path" "$tmp_dir/$path"
    prompt_file="$tmp_dir/.review-prompt.txt"   # write the step 3 prompt here
@@ -91,7 +92,9 @@ Take this path only when the user explicitly says to run the CLI, for example "r
    |---|---|
    | `codex` | `codex exec -C "$tmp_dir" -s read-only --ephemeral --skip-git-repo-check -o "$tmp_dir/.report.md" "$(cat "$prompt_file")"` |
    | `claude` | `(cd "$tmp_dir" && claude -p --tools Read,Grep,Glob --strict-mcp-config --disable-slash-commands "$(cat "$prompt_file")")` |
-   | `agy` | `(cd "$tmp_dir" && agy -p --mode plan "$(cat "$prompt_file")")` |
+   | `agy` | `(cd "$tmp_dir" && agy --mode plan --sandbox -p "$(cat "$prompt_file")")` |
+
+   For `agy`, every flag goes before `-p`: `-p` takes the next token as the prompt, so `agy -p --mode plan ...` fails. `--sandbox` turns on `agy`'s terminal sandbox, as a second layer on top of headless mode refusing commands that need approval.
 
 3. Take the reviewer's answer from stdout, or for `codex` from `$tmp_dir/.report.md`.
 4. Read the answer yourself before saving it.
@@ -128,7 +131,7 @@ Save the report to the report path from step 2 with this structure:
 
 <findings ranked blocker → major → minor; each with type, file/section and the change to make>
 
-## Handoff: suggested next actions
+## Suggested next actions
 
 <2-4 bullets ordered by severity, naming the artifacts to change>
 ```

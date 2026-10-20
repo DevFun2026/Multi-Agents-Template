@@ -22,6 +22,10 @@ _Avoid_: subagent, child, helper
 A named **Worker** definition with fixed tools and a cost tier: explorer, researcher, implementer, reviewer, security-reviewer, uiux-reviewer.
 _Avoid_: persona, agent type
 
+**Delegation**:
+The **Controller** handing one bounded task to a **Worker** through a **Task packet**.
+_Avoid_: offloading, outsourcing
+
 **Task packet**:
 The minimal brief a **Worker** receives: objective, constraints, exact paths, contracts, acceptance criteria and expected output.
 _Avoid_: prompt dump, transcript

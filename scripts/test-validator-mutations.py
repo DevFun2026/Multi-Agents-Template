@@ -188,6 +188,13 @@ FAKE_SECRETS = {
 }
 
 
+def use_context_map(root: Path, context_text: str | None = "# Ctx\n\n## Language\n") -> None:
+    (root / "CONTEXT.md").unlink()
+    write_session_artifact(root, "CONTEXT-MAP.md", "# Context map\n\n- [Ctx](./docs/ctx/CONTEXT.md): one context\n")
+    if context_text is not None:
+        write_session_artifact(root, "docs/ctx/CONTEXT.md", context_text)
+
+
 def corrupt_first_hash(skill: dict) -> None:
     first = sorted(skill["files"])[0]
     skill["files"][first] = "0" * 64
@@ -750,6 +757,39 @@ config_file = "agents/docs.toml"
         lambda root: write_session_artifact(root, "docs/handoffs/notes.md", "# Notes\n"),
     ),
     (
+        "context map links a missing CONTEXT.md",
+        lambda root: use_context_map(root, None),
+    ),
+    (
+        "map-linked CONTEXT.md without Language",
+        lambda root: use_context_map(root, "# Ctx\n\n## Terms\n"),
+    ),
+    (
+        "context map with no CONTEXT.md link",
+        lambda root: (
+            (root / "CONTEXT.md").unlink(),
+            write_session_artifact(root, "CONTEXT-MAP.md", "# Context map\n\nNothing yet.\n"),
+        ),
+    ),
+    (
+        "context map link escapes the repository",
+        lambda root: (
+            (root / "CONTEXT.md").unlink(),
+            write_session_artifact(root, "CONTEXT-MAP.md", "# Map\n\n- [X](../outside/CONTEXT.md)\n"),
+        ),
+    ),
+    (
+        "context map links a symlinked CONTEXT.md",
+        lambda root: (
+            use_context_map(root),
+            replace_with_symlink(root / "docs/ctx/CONTEXT.md", "../../docs/templates/context.md"),
+        ),
+    ),
+    (
+        "review name without cross-review suffix",
+        lambda root: write_session_artifact(root, "docs/reviews/2026-10-20-120000-notes.md", "# R\n"),
+    ),
+    (
         "handoff slug uppercase",
         lambda root: write_session_artifact(root, "docs/handoffs/2026-10-20-120000-Plan.md", "# H\n"),
     ),
@@ -824,7 +864,13 @@ expected_messages: dict[str, str] = {
     "project skill entry retargeted": "must point to",
     "project skill dir is a symlink": "must be a real directory",
     "undeclared project skill symlink": "undeclared symlink",
-    "CONTEXT.md required": "missing required file: CONTEXT.md",
+    "CONTEXT.md required": "CONTEXT.md or CONTEXT-MAP.md is required",
+    "context map links a missing CONTEXT.md": "linked context file is missing",
+    "map-linked CONTEXT.md without Language": "## Language",
+    "review name without cross-review suffix": "file name must match",
+    "context map with no CONTEXT.md link": "must link at least one CONTEXT.md",
+    "context map link escapes the repository": "missing or unsafe",
+    "context map links a symlinked CONTEXT.md": "missing or unsafe",
     "CONTEXT.md needs Language section": "## Language",
     "context template required": "missing required file: docs/templates/context.md",
     "handoff leaks AWS key": "possible secret",
@@ -884,6 +930,14 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
             "docs/handoffs/2026-10-20-120000-session.md",
             "# Handoff\n\nUses sk-learn; see the planning gate (section 3) of an older policy.\n",
         ),
+    ),
+    (
+        "OS junk file in docs/reviews is ignored",
+        lambda root: write_session_artifact(root, "docs/reviews/.DS_Store", "junk"),
+    ),
+    (
+        "CONTEXT-MAP.md-only repository",
+        use_context_map,
     ),
     (
         "well-named cross-review report",
