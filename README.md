@@ -12,7 +12,7 @@ The main-session model is the controller/judge. Cheaper workers handle bounded w
 - **ECC** — specialist research, engineering, security, verification, and context management.
 - **UI UX Pro Max** — UI/UX intelligence.
 
-The upstream skill packs are installed separately; this repository does not vendor them.
+The upstream skill packs are installed separately; this repository does not vendor them. The one exception is Cloudflare's `security-audit` skill, vendored at a pinned commit under `.agents/skills/` for all three harnesses and integrity-checked by `scripts/vendored-skills.json` (see `docs/UPSTREAMS.md`).
 
 ## Native routing
 
@@ -226,7 +226,7 @@ GitHub Actions additionally installs **Codex CLI 0.160.1** and **Gemini CLI 0.62
 
 - `docs/HARNESSES.md` — real native behavior and limitations.
 - `docs/ORCHESTRATION.md` — concurrency/model/context routing.
-- `docs/UPSTREAMS.md` — pinned install/update strategy.
+- `docs/UPSTREAMS.md` — pinned install/update strategy, including the vendored `security-audit` skill.
 - `docs/SESSION-EXAMPLES.md` — examples.
 
 ---

@@ -11,11 +11,14 @@ python3 scripts/test-bootstrap.py
 
 if command -v node >/dev/null 2>&1; then
   node scripts/test-gemini-policy.mjs
+  node --test \
+    .agents/skills/security-audit/validate-findings.test.cjs \
+    .agents/skills/security-audit/validate-coverage-ledger.test.cjs
 elif [[ "${REQUIRE_GEMINI_POLICY_TEST:-}" == "1" ]]; then
-  echo "[fail] node is required for the Gemini policy engine test"
+  echo "[fail] node is required for the Gemini policy engine and vendored skill tests"
   exit 1
 else
-  echo "[warn] node not installed; skipping Gemini policy engine test (CI runs it)"
+  echo "[warn] node not installed; skipping Gemini policy engine and vendored skill tests (CI runs them)"
 fi
 
 bash -n scripts/bootstrap.sh

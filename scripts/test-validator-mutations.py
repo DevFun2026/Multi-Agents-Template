@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
+import os
 import shutil
 import subprocess
 import sys
@@ -46,6 +48,8 @@ def copy_repo(destination: Path) -> None:
         ROOT,
         destination,
         ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv", "node_modules"),
+        # Keep symlinks as links so the vendored-skill entry point is checked as shipped.
+        symlinks=True,
     )
 
 
@@ -107,6 +111,51 @@ def replace_first_policy_regex(root: Path, new_regex: str) -> None:
         raise AssertionError("no commandRegex rule found in Gemini policy example")
 
     mutate_text(root, GEMINI_POLICY, edit)
+
+
+VENDORED_SKILL = ".agents/skills/security-audit"
+CLAUDE_SKILL_ENTRY = ".claude/skills/security-audit"
+VENDORED_MANIFEST = "scripts/vendored-skills.json"
+
+
+def replace_with_symlink(path: Path, target: str) -> None:
+    path.unlink()
+    path.symlink_to(target)
+
+
+def flatten_claude_skill_entry(root: Path) -> None:
+    entry = root / CLAUDE_SKILL_ENTRY
+    entry.unlink()
+    shutil.copytree(root / VENDORED_SKILL, entry)
+
+
+def mutate_vendored_manifest(root: Path, fn: Callable[[dict], None]) -> None:
+    path = root / VENDORED_MANIFEST
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    fn(manifest["skills"][0])
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def symlink_dest_parent(root: Path) -> None:
+    skills = root / ".agents/skills"
+    outside = root / "outside-skills"
+    skills.rename(outside)
+    skills.symlink_to("../outside-skills")
+
+
+def plant_fifo(root: Path) -> None:
+    os.mkfifo(root / VENDORED_SKILL / "pipe")
+
+
+def plant_junk_dir_payload(root: Path) -> None:
+    junk = root / VENDORED_SKILL / ".DS_Store"
+    junk.mkdir()
+    (junk / "payload.md").write_text("payload\n", encoding="utf-8")
+
+
+def corrupt_first_hash(skill: dict) -> None:
+    first = sorted(skill["files"])[0]
+    skill["files"][first] = "0" * 64
 
 
 def move_phase_2_before_phase_1(text: str) -> str:
@@ -516,7 +565,107 @@ config_file = "agents/docs.toml"
             encoding="utf-8",
         ),
     ),
+    (
+        "vendored file edited",
+        lambda root: mutate_text(root, f"{VENDORED_SKILL}/SKILL.md", lambda s: s + "\n"),
+    ),
+    (
+        "vendored extra file",
+        lambda root: (root / VENDORED_SKILL / "EXTRA.md").write_text("extra\n", encoding="utf-8"),
+    ),
+    (
+        "vendored file removed",
+        lambda root: (root / VENDORED_SKILL / "HUNTING.md").unlink(),
+    ),
+    (
+        "vendored symlink inside dest",
+        lambda root: replace_with_symlink(root / VENDORED_SKILL / "ATTACK-CLASSES.md", "/etc/hosts"),
+    ),
+    (
+        "claude skill entry flattened into a directory",
+        flatten_claude_skill_entry,
+    ),
+    (
+        "claude skill entry retargeted",
+        lambda root: replace_with_symlink(root / CLAUDE_SKILL_ENTRY, "../../docs"),
+    ),
+    (
+        "vendored manifest hash corrupted",
+        lambda root: mutate_vendored_manifest(root, corrupt_first_hash),
+    ),
+    (
+        "vendored manifest commit malformed",
+        lambda root: mutate_vendored_manifest(root, lambda skill: skill.update(commit="main")),
+    ),
+    (
+        "vendored manifest path traversal",
+        lambda root: mutate_vendored_manifest(
+            root, lambda skill: skill["files"].update({"../README.md": "0" * 64})
+        ),
+    ),
+    (
+        "vendored manifest required",
+        lambda root: (root / VENDORED_MANIFEST).unlink(),
+    ),
+    (
+        "vendored dest replaced by a symlink",
+        lambda root: (
+            (root / VENDORED_SKILL).rename(root / "outside-skill"),
+            (root / VENDORED_SKILL).symlink_to("../../outside-skill"),
+        ),
+    ),
+    (
+        "vendored dest behind a symlinked parent",
+        symlink_dest_parent,
+    ),
+    (
+        "vendored directory symlink inside dest",
+        lambda root: (root / VENDORED_SKILL / "linked-dir").symlink_to("../../../docs"),
+    ),
+    (
+        "vendored FIFO inside dest",
+        plant_fifo,
+    ),
+    (
+        "vendored junk-named directory hides a payload",
+        plant_junk_dir_payload,
+    ),
+    (
+        "vendored manifest entry_points required",
+        lambda root: mutate_vendored_manifest(root, lambda skill: skill.pop("entry_points")),
+    ),
+    (
+        "vendored manifest root must be an object",
+        lambda root: (root / VENDORED_MANIFEST).write_text("[]\n", encoding="utf-8"),
+    ),
+    (
+        "undeclared symlink in a skill root",
+        lambda root: (root / ".claude/skills/other").symlink_to("/etc"),
+    ),
 ]
+
+# Vendored-skill cases must fail for their own rule, not an incidental error.
+expected_messages: dict[str, str] = {
+    "vendored file edited": "does not match the pinned SHA-256",
+    "vendored extra file": "unexpected file",
+    "vendored file removed": "missing file",
+    "vendored symlink inside dest": "must not be a symlink",
+    "claude skill entry flattened into a directory": "must be a symlink to",
+    "claude skill entry retargeted": "must point to",
+    "vendored manifest hash corrupted": "does not match the pinned SHA-256",
+    "vendored manifest commit malformed": "full 40-hex commit",
+    "vendored manifest path traversal": "unsafe file path",
+    "vendored manifest required": "vendored-skills.json",
+    "vendored dest replaced by a symlink": "must be a real directory",
+    "vendored dest behind a symlinked parent": "symlinked parent",
+    "vendored directory symlink inside dest": "must not be a symlink",
+    "vendored FIFO inside dest": "must be a regular file",
+    "vendored junk-named directory hides a payload": "unexpected file",
+    "vendored manifest entry_points required": "'entry_points' must be a non-empty object",
+    "vendored manifest root must be an object": "JSON root must be an object",
+    "undeclared symlink in a skill root": "undeclared symlink",
+}
+assert set(expected_messages) <= {name for name, _ in cases}, "expected_messages names an unknown case"
 
 
 # Valid custom roles that must keep passing, so the invariants are not
@@ -550,6 +699,10 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
         "local-only Claude helper is allowed",
         lambda root: write_claude_agent(root, "lister", "Read, Glob"),
     ),
+    (
+        "OS junk files inside the vendored skill are ignored",
+        lambda root: (root / VENDORED_SKILL / ".DS_Store").write_bytes(b"\x00junk"),
+    ),
 ]
 
 
@@ -572,6 +725,12 @@ with tempfile.TemporaryDirectory(prefix="multi-agents-validator-") as tmp:
 
         if result.returncode == 0:
             print(f"[fail] mutation unexpectedly passed: {name}")
+            print(result.stdout)
+            raise SystemExit(1)
+
+        expected = expected_messages.get(name)
+        if expected is not None and expected not in result.stdout:
+            print(f"[fail] mutation rejected for the wrong reason: {name} (expected {expected!r})")
             print(result.stdout)
             raise SystemExit(1)
 

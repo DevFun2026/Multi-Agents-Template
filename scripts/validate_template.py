@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 try:
@@ -60,6 +62,7 @@ REQUIRED = [
     "docs/ORCHESTRATION.md",
     "docs/SESSION-EXAMPLES.md",
     "docs/UPSTREAMS.md",
+    "scripts/vendored-skills.json",
     "docs/templates/spec.md",
     "docs/templates/design.md",
     "docs/templates/adr.md",
@@ -846,6 +849,125 @@ else:
         fail("Gemini reviewer user-policy example must deny curl/wget prefixes for all reviewer roles")
     if not expected_subagents.issubset(regex_subagents):
         fail("Gemini reviewer user-policy example must include wrapped curl/wget regex rules for all reviewer roles")
+
+# Vendored skills must stay byte-identical to the pinned upstream commit
+# (ADR 0003). Their bytes are upstream's, so they are not in the newline check.
+VENDORED_MANIFEST = "scripts/vendored-skills.json"
+# OS junk that .gitignore already keeps out of commits; skipped only as regular files.
+VENDORED_IGNORED_NAMES = {".DS_Store", "Thumbs.db"}
+VENDORED_SKILL_ROOTS = (".agents/skills", ".claude/skills", ".gemini/skills")
+SHA1_HEX = re.compile(r"^[0-9a-f]{40}$")
+SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+
+def is_safe_relative(rel: str) -> bool:
+    path = PurePosixPath(rel)
+    return bool(rel) and not path.is_absolute() and ".." not in path.parts and "\\" not in rel
+
+
+def check_vendored_skills() -> None:
+    manifest = parse_json(VENDORED_MANIFEST)
+    skills = manifest.get("skills")
+    if not isinstance(skills, list) or not skills:
+        fail(f"{VENDORED_MANIFEST}: 'skills' must be a non-empty list")
+        return
+
+    declared_links: set[str] = set()
+    for skill in skills:
+        if not isinstance(skill, dict):
+            fail(f"{VENDORED_MANIFEST}: each skill entry must be an object")
+            continue
+        name = skill.get("name", "<unnamed>")
+        label = f"{VENDORED_MANIFEST}: {name}"
+
+        for key in ("name", "repo", "source_path", "dest"):
+            if not isinstance(skill.get(key), str) or not skill[key]:
+                fail(f"{label}: '{key}' must be a non-empty string")
+        if not SHA1_HEX.match(str(skill.get("commit", ""))):
+            fail(f"{label}: 'commit' must be a full 40-hex commit")
+
+        dest_rel = skill.get("dest")
+        files = skill.get("files")
+        if not isinstance(dest_rel, str) or not is_safe_relative(dest_rel):
+            fail(f"{label}: 'dest' must be a safe relative path")
+            continue
+        if not isinstance(files, dict) or not files:
+            fail(f"{label}: 'files' must be a non-empty object")
+            continue
+
+        dest = ROOT / dest_rel
+        if dest.is_symlink() or not dest.is_dir():
+            fail(f"{label}: {dest_rel} must be a real directory")
+            continue
+        # A symlinked parent (for example .agents/skills) would serve files from outside the repo.
+        if dest.resolve() != ROOT.resolve() / dest_rel:
+            fail(f"{label}: {dest_rel} must not be reached through a symlinked parent")
+            continue
+
+        expected: dict[str, str] = {}
+        for rel, digest in files.items():
+            if not isinstance(rel, str) or not is_safe_relative(rel):
+                fail(f"{label}: unsafe file path {rel!r}")
+            elif not isinstance(digest, str) or not SHA256_HEX.match(digest):
+                fail(f"{label}: {rel}: hash must be 64-hex SHA-256")
+            else:
+                expected[rel] = digest
+
+        found: set[str] = set()
+        for dirpath, dirnames, filenames in os.walk(dest, followlinks=False):
+            current = Path(dirpath)
+            for entry in dirnames + filenames:
+                path = current / entry
+                rel = path.relative_to(dest).as_posix()
+                if path.is_symlink():
+                    fail(f"{label}: {dest_rel}/{rel} must not be a symlink")
+                    # Counted as found so the symlink rule alone reports it.
+                    found.add(rel)
+                elif path.is_dir():
+                    continue
+                elif not path.is_file():
+                    fail(f"{label}: {dest_rel}/{rel} must be a regular file")
+                    found.add(rel)
+                elif entry not in VENDORED_IGNORED_NAMES:
+                    found.add(rel)
+
+        for rel in sorted(found - set(files)):
+            fail(f"{label}: unexpected file {dest_rel}/{rel}")
+        for rel in sorted(set(expected) - found):
+            fail(f"{label}: missing file {dest_rel}/{rel}")
+        for rel in sorted(set(expected) & found):
+            actual = hashlib.sha256((dest / rel).read_bytes()).hexdigest()
+            if actual != expected[rel]:
+                fail(f"{label}: {dest_rel}/{rel} does not match the pinned SHA-256")
+
+        entry_points = skill.get("entry_points")
+        if not isinstance(entry_points, dict) or not entry_points:
+            fail(f"{label}: 'entry_points' must be a non-empty object")
+            continue
+        for link_rel, target in entry_points.items():
+            link = ROOT / link_rel
+            if not is_safe_relative(link_rel) or not isinstance(target, str):
+                fail(f"{label}: invalid entry point {link_rel!r}")
+            elif not link.is_symlink():
+                fail(f"{label}: {link_rel} must be a symlink to {target}")
+            elif os.readlink(link) != target:
+                fail(f"{label}: {link_rel} must point to {target}, not {os.readlink(link)}")
+            else:
+                declared_links.add(link_rel)
+
+    # Every symlink in a skill root must be a declared entry point.
+    for root_rel in VENDORED_SKILL_ROOTS:
+        skill_root = ROOT / root_rel
+        if not skill_root.is_dir():
+            continue
+        for entry in sorted(skill_root.iterdir()):
+            rel = entry.relative_to(ROOT).as_posix()
+            if entry.is_symlink() and rel not in declared_links:
+                fail(f"{VENDORED_MANIFEST}: undeclared symlink {rel}")
+
+
+check_vendored_skills()
+
 
 template_text_files: set[Path] = {
     ROOT / rel for rel in REQUIRED if (ROOT / rel).is_file()
