@@ -115,6 +115,30 @@ uipro init --ai <codex|claude|gemini>
 
 If you need a preview, run the pinned initializer manually inside a disposable temporary project and inspect its generated files before applying it to the real project.
 
+## Vendored skills
+
+Unlike the packs above, these skills are checked into the repository so every clone has them without an install step (ADR 0003).
+
+| Skill | Upstream | Commit | Source path | Destination |
+|---|---|---|---|---|
+| `security-audit` | https://github.com/cloudflare/security-audit-skill | `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` | `skills/security-audit/` | `.agents/skills/security-audit/` (+ upstream MIT `LICENSE`) |
+
+Discovery:
+
+- Codex and Gemini CLI read `.agents/skills/` directly.
+- Claude Code reads `.claude/skills/security-audit`, a symlink to `../../.agents/skills/security-audit`.
+
+`scripts/vendored-skills.json` records the pin and a SHA-256 for every vendored file. `scripts/validate_template.py` fails on any edited, added or removed file, on a symlink inside the vendored directory, or on a missing or retargeted entry point. `.gitattributes` disables line-ending conversion for `.agents/skills/**` so hashes match on every platform. `scripts/verify-template.sh` also runs the skill's own `node --test` suites.
+
+Never edit vendored files in place. To update a vendored skill:
+
+1. clone the upstream repository at the new commit into a temporary directory;
+2. review the upstream diff since the current pin, especially executable `.cjs` files;
+3. replace the destination directory with the new `source_path` contents and the upstream `LICENSE`;
+4. update `commit` and regenerate `files` hashes in `scripts/vendored-skills.json` (`hashlib.sha256` over each file's bytes, POSIX paths relative to `dest`, sorted);
+5. run `bash scripts/verify-template.sh`;
+6. get a `security-reviewer` pass on the change.
+
 ## Bootstrap safety model
 
 ```bash

@@ -122,6 +122,14 @@ Start from project root and confirm project agents are listed/usable. Recursion 
 
 The second command is useful after editing agent definitions during a running session.
 
+### Vendored skills
+
+The vendored `security-audit` skill (see `docs/UPSTREAMS.md`) is discovered per harness as follows:
+
+- **Codex** reads `.agents/skills/` from the working directory up to the repository root.
+- **Claude Code** reads `.claude/skills/security-audit`, a symlink to `../../.agents/skills/security-audit`. On Windows, clone with symlinks enabled (`core.symlinks=true` plus Developer Mode or admin rights); otherwise the link becomes a text file and Claude Code does not see the skill.
+- **Gemini CLI** reads `.agents/skills/` as an alias of `.gemini/skills/`, only in trusted folders. Gemini CLI is being replaced by Antigravity CLI (`agy`); confirm discovery in your installed version before relying on it.
+
 ## Custom agent contract
 
 These invariants apply to every agent file, including user-added roles:
