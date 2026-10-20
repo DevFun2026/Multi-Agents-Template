@@ -68,6 +68,8 @@ REQUIRED = [
     "docs/templates/design.md",
     "docs/templates/adr.md",
     "docs/templates/plan.md",
+    "docs/templates/context.md",
+    "CONTEXT.md",
     "scripts/bootstrap.sh",
     "scripts/verify-template.sh",
     "scripts/test-bootstrap.py",
@@ -623,7 +625,7 @@ if gate_heading:
     gate_number = gate_heading.group(1)
     # Living docs only: dated records (ADRs, plans, specs, designs) keep the
     # wording they were approved with and are not rewritten on renumbering.
-    record_dirs = {ROOT / "docs" / name for name in ("adr", "plans", "specs", "designs")}
+    record_dirs = {ROOT / "docs" / name for name in ("adr", "plans", "specs", "designs", "handoffs", "reviews")}
     for path in sorted({ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "GEMINI.md", ROOT / "README.md",
                         *ROOT.glob("docs/**/*"), *ROOT.glob("prompts/*.md")}):
         if not path.is_file() or path.suffix not in {".md", ".html"} or record_dirs & set(path.parents):
@@ -1040,6 +1042,44 @@ def check_project_skills() -> set[str]:
 
 
 check_vendored_skills(check_project_skills())
+
+
+# CONTEXT.md is the domain glossary (ADR 0005).
+for rel in ("CONTEXT.md", "docs/templates/context.md"):
+    if (ROOT / rel).is_file() and not re.search(r"^## Language\s*$", read_text(rel), re.MULTILINE):
+        fail(f"{rel}: needs a '## Language' section")
+
+
+# Handoffs and cross-review reports are committed session artifacts
+# (ADR 0006): safe file names and no obvious secrets.
+SESSION_ARTIFACT_DIRS = ("docs/handoffs", "docs/reviews")
+SESSION_ARTIFACT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{6}-[a-z0-9-]+\.md$")
+SECRET_PATTERNS = (
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}"),
+    re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
+    re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+)
+
+for dir_rel in SESSION_ARTIFACT_DIRS:
+    session_dir = ROOT / dir_rel
+    if not session_dir.is_dir():
+        continue
+    for path in sorted(session_dir.rglob("*")):
+        rel = path.relative_to(ROOT).as_posix()
+        if path.is_symlink() or path.is_dir():
+            if path.is_symlink():
+                fail(f"{rel}: session artifacts must not be symlinks")
+            continue
+        if path.name == ".gitkeep":
+            continue
+        if path.parent != session_dir or not SESSION_ARTIFACT_NAME.match(path.name):
+            fail(f"{rel}: file name must match YYYY-MM-DD-HHMMSS-<slug>.md directly under {dir_rel}/")
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if any(pattern.search(line) for pattern in SECRET_PATTERNS):
+                fail(f"{rel}:{lineno}: possible secret; redact it before committing")
 
 
 template_text_files: set[Path] = {

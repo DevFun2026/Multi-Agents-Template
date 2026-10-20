@@ -145,6 +145,14 @@ A task packet should contain only:
 
 If an explorer already located the relevant code, reuse that evidence instead of asking each worker to rediscover the repository.
 
+### Domain language (CONTEXT.md)
+
+`CONTEXT.md` at the repository root is the project's domain glossary (ADR 0005, format in `docs/templates/context.md`). A repository with several bounded contexts has a root `CONTEXT-MAP.md` that lists one `CONTEXT.md` per context.
+
+- When a glossary exists, read it before writing a spec, design, plan or task packet, and use its terms exactly. Do not use the aliases it lists under `_Avoid_`.
+- When `brainstorming` settles a new term, or changes the meaning of an existing one, update `CONTEXT.md` in PHASE 1, next to the spec.
+- Keep only project-specific terms. General programming concepts do not belong.
+
 ## 7. Research separation and exfiltration hardening
 
 Separate **local code investigation** from **external web research**.
@@ -229,6 +237,14 @@ Until the user approves the plan, the only permitted writes are the PHASE 1 arti
 Spec, design and plan are required for every task under this gate. An ADR is required for each architecture decision the task makes: a new dependency or major upgrade, a data model or schema, a public interface or API, a cross-cutting pattern or convention, infrastructure, deployment or a security boundary, or any other choice that is expensive to reverse. Without such a decision, an ADR is optional; write "ADRs: none" in the design and plan.
 
 These project paths and templates override skill default locations. If a skill writes one combined design document, split it into the spec and the design at these paths. Scale each artifact to the task; a few lines per section is fine for a small change.
+
+`CONTEXT.md` (and `CONTEXT-MAP.md` or per-context `CONTEXT.md` files) may also be written in PHASE 1, to record terms that the task settles.
+
+Session artifacts are outside this gate:
+
+- what they are: handoff files in `docs/handoffs/` (the `handoff` skill) and cross-review reports in `docs/reviews/` (the `cross-review` skill);
+- they may be written at any time, before or after approval, because they record a session rather than change the product;
+- they are committed, so they must never contain secrets, credentials or personal data. The validator rejects common secret patterns and file names that break the `YYYY-MM-DD-HHMMSS-<slug>.md` pattern.
 
 ### Steps
 

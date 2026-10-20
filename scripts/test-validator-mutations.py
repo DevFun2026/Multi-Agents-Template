@@ -170,6 +170,12 @@ def symlink_project_skill_dir(root: Path) -> None:
     skill.symlink_to("../../outside-handoff")
 
 
+def write_session_artifact(root: Path, rel: str, text: str) -> None:
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def corrupt_first_hash(skill: dict) -> None:
     first = sorted(skill["files"])[0]
     skill["files"][first] = "0" * 64
@@ -701,6 +707,36 @@ config_file = "agents/docs.toml"
         "undeclared project skill symlink",
         lambda root: drop_project_skill(root, "explain"),
     ),
+    (
+        "CONTEXT.md required",
+        lambda root: (root / "CONTEXT.md").unlink(),
+    ),
+    (
+        "CONTEXT.md needs Language section",
+        lambda root: mutate_text(root, "CONTEXT.md", lambda s: s.replace("## Language", "## Terms")),
+    ),
+    (
+        "context template required",
+        lambda root: (root / "docs/templates/context.md").unlink(),
+    ),
+    (
+        "handoff leaks AWS key",
+        lambda root: write_session_artifact(
+            root, "docs/handoffs/2026-10-20-120000-x.md", "# Handoff\n\nkey AKIAABCDEFGHIJKLMNOP\n"
+        ),
+    ),
+    (
+        "review leaks private key",
+        lambda root: write_session_artifact(
+            root,
+            "docs/reviews/2026-10-20-120000-x-cross-review.md",
+            "# Review\n\n-----BEGIN RSA PRIVATE KEY-----\n",
+        ),
+    ),
+    (
+        "handoff file name unsafe",
+        lambda root: write_session_artifact(root, "docs/handoffs/notes.md", "# Notes\n"),
+    ),
 ]
 
 # Vendored-skill cases must fail for their own rule, not an incidental error.
@@ -731,6 +767,12 @@ expected_messages: dict[str, str] = {
     "project skill entry retargeted": "must point to",
     "project skill dir is a symlink": "must be a real directory",
     "undeclared project skill symlink": "undeclared symlink",
+    "CONTEXT.md required": "CONTEXT.md",
+    "CONTEXT.md needs Language section": "## Language",
+    "context template required": "docs/templates/context.md",
+    "handoff leaks AWS key": "possible secret",
+    "review leaks private key": "possible secret",
+    "handoff file name unsafe": "file name must match",
 }
 assert set(expected_messages) <= {name for name, _ in cases}, "expected_messages names an unknown case"
 
@@ -769,6 +811,20 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "OS junk files inside the vendored skill are ignored",
         lambda root: (root / VENDORED_SKILL / ".DS_Store").write_bytes(b"\x00junk"),
+    ),
+    (
+        "handoff with short sk- text and a gate section reference",
+        lambda root: write_session_artifact(
+            root,
+            "docs/handoffs/2026-10-20-120000-session.md",
+            "# Handoff\n\nUses sk-learn; see the planning gate (section 3) of an older policy.\n",
+        ),
+    ),
+    (
+        "well-named cross-review report",
+        lambda root: write_session_artifact(
+            root, "docs/reviews/2026-10-20-120000-plan-cross-review.md", "# Cross-review: plan\n"
+        ),
     ),
 ]
 
