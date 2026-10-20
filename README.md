@@ -14,6 +14,17 @@ The main-session model is the controller/judge. Cheaper workers handle bounded w
 
 The upstream skill packs are installed separately; this repository does not vendor them. The one exception is Cloudflare's `security-audit` skill, vendored at a pinned commit under `.agents/skills/` for all three harnesses and integrity-checked by `scripts/vendored-skills.json` (see `docs/UPSTREAMS.md`).
 
+### Project skills
+
+These are written for this template, explicit-only (they run only when you invoke them), and available in Claude Code, Codex and `agy` from `.agents/skills/`:
+
+- `handoff [next focus]`: writes `docs/handoffs/YYYY-MM-DD-HHMMSS-<slug>.md` so a fresh session can continue.
+- `zoom-out [area]`: a read-only map of modules, entry points and callers around the code in question.
+- `explain [what was unclear]`: re-pitches the previous answer in simpler words and glossary terms.
+- `cross-review <claude|codex|agy> [plan]`: a second model from another harness reviews the spec, design, ADRs and plan. It prints a prompt by default and runs that CLI, in a temporary copy, only when you say so. Reports go to `docs/reviews/`.
+
+`CONTEXT.md` is the domain glossary that specs, plans and these skills use (format in `docs/templates/context.md`). Replace the template's own terms with your project's.
+
 ## Native routing
 
 | Harness | Lower-cost workers | Write isolation | Final judgment |

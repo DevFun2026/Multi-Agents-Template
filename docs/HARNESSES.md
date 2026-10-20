@@ -122,9 +122,9 @@ Start from project root and confirm project agents are listed/usable. Recursion 
 
 The second command is useful after editing agent definitions during a running session.
 
-### Vendored skills
+### Skills
 
-The vendored `security-audit` skill (see `docs/UPSTREAMS.md`) is discovered per harness as follows:
+All skills, both the vendored `security-audit` and the project skills `handoff`, `zoom-out`, `explain` and `cross-review`, live once in `.agents/skills/` (see `docs/UPSTREAMS.md`). They are discovered per harness as follows:
 
 - **Codex** reads `.agents/skills/` from the working directory up to the repository root.
 - **Claude Code** reads `.claude/skills/security-audit`, a symlink to `../../.agents/skills/security-audit`. On Windows, clone with symlinks enabled (`core.symlinks=true` plus Developer Mode or admin rights); otherwise the link becomes a text file and Claude Code does not see the skill.
@@ -137,6 +137,14 @@ Verified on 2026-10-20:
 | Claude Code | listed in its skill list |
 | Codex 0.159.3 | listed by `codex debug prompt-input` |
 | `agy` 1.4.2 | listed by `agy -p "List the names of the agent skills available in this workspace."` |
+
+Project skills are explicit-only. Each harness invokes and enforces that differently:
+
+| Harness | Invoke | Explicit-only control |
+|---|---|---|
+| Claude Code | `/handoff`, `/zoom-out`, `/explain`, `/cross-review codex` | `disable-model-invocation: true` in `SKILL.md` |
+| Codex | `$handoff` (or pick from `/skills`) | `agents/openai.yaml`: `policy.allow_implicit_invocation: false` |
+| `agy` | ask for the skill by name, e.g. "use the handoff skill" | none documented; `agy` may load these skills on its own |
 
 ## Custom agent contract
 
