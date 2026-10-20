@@ -303,7 +303,8 @@ For auth/authz, secrets, payments, cryptography, permissions, untrusted input, i
 - the skill's `research` agent maps to `explorer`, and its `general` agent maps to `security-reviewer`; hunters and verifiers never spawn agents;
 - guidance mode, the skill's default, is for focused security questions and reviews;
 - full audit mode runs only when the user explicitly asks for a codebase audit or pen test. Before launching, the controller states the profile (`quick` or `standard`) or an agent `budget`, because a full audit can exceed the 2–4 worker norm in section 4;
-- audit output goes outside this repository (the skill's default `~/security-audit-skill/<repo>/run-N`);
+- audit output goes outside this repository (the skill's default `~/security-audit-skill/<repo>/run-N`). Because it writes nothing in the repository, an explicitly requested audit counts as read-only work under section 9; fixing its findings does not, and goes through the planning gate;
+- audit agents keep the section 7 separation: no network access, no dependency installs, no probing of deployed services;
 - without the OS-enforced sandbox the skill requires, target code is not executed and leads stay `needs_validation`;
 - never edit vendored files; update them only by re-vendoring a reviewed upstream commit.
 

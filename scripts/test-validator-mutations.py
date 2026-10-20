@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -133,6 +134,23 @@ def mutate_vendored_manifest(root: Path, fn: Callable[[dict], None]) -> None:
     manifest = json.loads(path.read_text(encoding="utf-8"))
     fn(manifest["skills"][0])
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def symlink_dest_parent(root: Path) -> None:
+    skills = root / ".agents/skills"
+    outside = root / "outside-skills"
+    skills.rename(outside)
+    skills.symlink_to("../outside-skills")
+
+
+def plant_fifo(root: Path) -> None:
+    os.mkfifo(root / VENDORED_SKILL / "pipe")
+
+
+def plant_junk_dir_payload(root: Path) -> None:
+    junk = root / VENDORED_SKILL / ".DS_Store"
+    junk.mkdir()
+    (junk / "payload.md").write_text("payload\n", encoding="utf-8")
 
 
 def corrupt_first_hash(skill: dict) -> None:
@@ -589,7 +607,65 @@ config_file = "agents/docs.toml"
         "vendored manifest required",
         lambda root: (root / VENDORED_MANIFEST).unlink(),
     ),
+    (
+        "vendored dest replaced by a symlink",
+        lambda root: (
+            (root / VENDORED_SKILL).rename(root / "outside-skill"),
+            (root / VENDORED_SKILL).symlink_to("../../outside-skill"),
+        ),
+    ),
+    (
+        "vendored dest behind a symlinked parent",
+        symlink_dest_parent,
+    ),
+    (
+        "vendored directory symlink inside dest",
+        lambda root: (root / VENDORED_SKILL / "linked-dir").symlink_to("../../../docs"),
+    ),
+    (
+        "vendored FIFO inside dest",
+        plant_fifo,
+    ),
+    (
+        "vendored junk-named directory hides a payload",
+        plant_junk_dir_payload,
+    ),
+    (
+        "vendored manifest entry_points required",
+        lambda root: mutate_vendored_manifest(root, lambda skill: skill.pop("entry_points")),
+    ),
+    (
+        "vendored manifest root must be an object",
+        lambda root: (root / VENDORED_MANIFEST).write_text("[]\n", encoding="utf-8"),
+    ),
+    (
+        "undeclared symlink in a skill root",
+        lambda root: (root / ".claude/skills/other").symlink_to("/etc"),
+    ),
 ]
+
+# Vendored-skill cases must fail for their own rule, not an incidental error.
+expected_messages: dict[str, str] = {
+    "vendored file edited": "does not match the pinned SHA-256",
+    "vendored extra file": "unexpected file",
+    "vendored file removed": "missing file",
+    "vendored symlink inside dest": "must not be a symlink",
+    "claude skill entry flattened into a directory": "must be a symlink to",
+    "claude skill entry retargeted": "must point to",
+    "vendored manifest hash corrupted": "does not match the pinned SHA-256",
+    "vendored manifest commit malformed": "full 40-hex commit",
+    "vendored manifest path traversal": "unsafe file path",
+    "vendored manifest required": "vendored-skills.json",
+    "vendored dest replaced by a symlink": "must be a real directory",
+    "vendored dest behind a symlinked parent": "symlinked parent",
+    "vendored directory symlink inside dest": "must not be a symlink",
+    "vendored FIFO inside dest": "must be a regular file",
+    "vendored junk-named directory hides a payload": "unexpected file",
+    "vendored manifest entry_points required": "'entry_points' must be a non-empty object",
+    "vendored manifest root must be an object": "JSON root must be an object",
+    "undeclared symlink in a skill root": "undeclared symlink",
+}
+assert set(expected_messages) <= {name for name, _ in cases}, "expected_messages names an unknown case"
 
 
 # Valid custom roles that must keep passing, so the invariants are not
@@ -649,6 +725,12 @@ with tempfile.TemporaryDirectory(prefix="multi-agents-validator-") as tmp:
 
         if result.returncode == 0:
             print(f"[fail] mutation unexpectedly passed: {name}")
+            print(result.stdout)
+            raise SystemExit(1)
+
+        expected = expected_messages.get(name)
+        if expected is not None and expected not in result.stdout:
+            print(f"[fail] mutation rejected for the wrong reason: {name} (expected {expected!r})")
             print(result.stdout)
             raise SystemExit(1)
 

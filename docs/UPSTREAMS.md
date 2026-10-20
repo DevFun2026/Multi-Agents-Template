@@ -128,7 +128,15 @@ Discovery:
 - Codex and Gemini CLI read `.agents/skills/` directly.
 - Claude Code reads `.claude/skills/security-audit`, a symlink to `../../.agents/skills/security-audit`.
 
-`scripts/vendored-skills.json` records the pin and a SHA-256 for every vendored file. `scripts/validate_template.py` fails on any edited, added or removed file, on a symlink inside the vendored directory, or on a missing or retargeted entry point. `.gitattributes` disables line-ending conversion for `.agents/skills/**` so hashes match on every platform. `scripts/verify-template.sh` also runs the skill's own `node --test` suites.
+`scripts/vendored-skills.json` records the pin and a SHA-256 for every vendored file. `scripts/validate_template.py` fails in these cases:
+
+- any edited, added or removed file;
+- a symlink or non-regular file inside the vendored directory;
+- a vendored directory reached through a symlinked parent;
+- a missing or retargeted entry point;
+- any symlink in `.agents/skills`, `.claude/skills` or `.gemini/skills` that the manifest does not declare.
+
+`.DS_Store` and `Thumbs.db` regular files are ignored because `.gitignore` already keeps them out of commits. `.gitattributes` disables line-ending conversion for `.agents/skills/**` so hashes match on every platform. `scripts/verify-template.sh` also runs the skill's own `node --test` suites.
 
 Never edit vendored files in place. To update a vendored skill:
 

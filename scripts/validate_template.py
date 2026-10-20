@@ -853,7 +853,9 @@ else:
 # Vendored skills must stay byte-identical to the pinned upstream commit
 # (ADR 0003). Their bytes are upstream's, so they are not in the newline check.
 VENDORED_MANIFEST = "scripts/vendored-skills.json"
+# OS junk that .gitignore already keeps out of commits; skipped only as regular files.
 VENDORED_IGNORED_NAMES = {".DS_Store", "Thumbs.db"}
+VENDORED_SKILL_ROOTS = (".agents/skills", ".claude/skills", ".gemini/skills")
 SHA1_HEX = re.compile(r"^[0-9a-f]{40}$")
 SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
@@ -870,6 +872,7 @@ def check_vendored_skills() -> None:
         fail(f"{VENDORED_MANIFEST}: 'skills' must be a non-empty list")
         return
 
+    declared_links: set[str] = set()
     for skill in skills:
         if not isinstance(skill, dict):
             fail(f"{VENDORED_MANIFEST}: each skill entry must be an object")
@@ -896,6 +899,10 @@ def check_vendored_skills() -> None:
         if dest.is_symlink() or not dest.is_dir():
             fail(f"{label}: {dest_rel} must be a real directory")
             continue
+        # A symlinked parent (for example .agents/skills) would serve files from outside the repo.
+        if dest.resolve() != ROOT.resolve() / dest_rel:
+            fail(f"{label}: {dest_rel} must not be reached through a symlinked parent")
+            continue
 
         expected: dict[str, str] = {}
         for rel, digest in files.items():
@@ -914,7 +921,14 @@ def check_vendored_skills() -> None:
                 rel = path.relative_to(dest).as_posix()
                 if path.is_symlink():
                     fail(f"{label}: {dest_rel}/{rel} must not be a symlink")
-                elif path.is_file() and entry not in VENDORED_IGNORED_NAMES:
+                    # Counted as found so the symlink rule alone reports it.
+                    found.add(rel)
+                elif path.is_dir():
+                    continue
+                elif not path.is_file():
+                    fail(f"{label}: {dest_rel}/{rel} must be a regular file")
+                    found.add(rel)
+                elif entry not in VENDORED_IGNORED_NAMES:
                     found.add(rel)
 
         for rel in sorted(found - set(files)):
@@ -926,9 +940,9 @@ def check_vendored_skills() -> None:
             if actual != expected[rel]:
                 fail(f"{label}: {dest_rel}/{rel} does not match the pinned SHA-256")
 
-        entry_points = skill.get("entry_points", {})
-        if not isinstance(entry_points, dict):
-            fail(f"{label}: 'entry_points' must be an object")
+        entry_points = skill.get("entry_points")
+        if not isinstance(entry_points, dict) or not entry_points:
+            fail(f"{label}: 'entry_points' must be a non-empty object")
             continue
         for link_rel, target in entry_points.items():
             link = ROOT / link_rel
@@ -938,8 +952,18 @@ def check_vendored_skills() -> None:
                 fail(f"{label}: {link_rel} must be a symlink to {target}")
             elif os.readlink(link) != target:
                 fail(f"{label}: {link_rel} must point to {target}, not {os.readlink(link)}")
-            elif link.resolve() != dest.resolve():
-                fail(f"{label}: {link_rel} does not resolve to {dest_rel}")
+            else:
+                declared_links.add(link_rel)
+
+    # Every symlink in a skill root must be a declared entry point.
+    for root_rel in VENDORED_SKILL_ROOTS:
+        skill_root = ROOT / root_rel
+        if not skill_root.is_dir():
+            continue
+        for entry in sorted(skill_root.iterdir()):
+            rel = entry.relative_to(ROOT).as_posix()
+            if entry.is_symlink() and rel not in declared_links:
+                fail(f"{VENDORED_MANIFEST}: undeclared symlink {rel}")
 
 
 check_vendored_skills()
