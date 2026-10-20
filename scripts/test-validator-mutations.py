@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -46,6 +47,8 @@ def copy_repo(destination: Path) -> None:
         ROOT,
         destination,
         ignore=shutil.ignore_patterns(".git", "__pycache__", ".venv", "node_modules"),
+        # Keep symlinks as links so the vendored-skill entry point is checked as shipped.
+        symlinks=True,
     )
 
 
@@ -107,6 +110,34 @@ def replace_first_policy_regex(root: Path, new_regex: str) -> None:
         raise AssertionError("no commandRegex rule found in Gemini policy example")
 
     mutate_text(root, GEMINI_POLICY, edit)
+
+
+VENDORED_SKILL = ".agents/skills/security-audit"
+CLAUDE_SKILL_ENTRY = ".claude/skills/security-audit"
+VENDORED_MANIFEST = "scripts/vendored-skills.json"
+
+
+def replace_with_symlink(path: Path, target: str) -> None:
+    path.unlink()
+    path.symlink_to(target)
+
+
+def flatten_claude_skill_entry(root: Path) -> None:
+    entry = root / CLAUDE_SKILL_ENTRY
+    entry.unlink()
+    shutil.copytree(root / VENDORED_SKILL, entry)
+
+
+def mutate_vendored_manifest(root: Path, fn: Callable[[dict], None]) -> None:
+    path = root / VENDORED_MANIFEST
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    fn(manifest["skills"][0])
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def corrupt_first_hash(skill: dict) -> None:
+    first = sorted(skill["files"])[0]
+    skill["files"][first] = "0" * 64
 
 
 def move_phase_2_before_phase_1(text: str) -> str:
@@ -516,6 +547,48 @@ config_file = "agents/docs.toml"
             encoding="utf-8",
         ),
     ),
+    (
+        "vendored file edited",
+        lambda root: mutate_text(root, f"{VENDORED_SKILL}/SKILL.md", lambda s: s + "\n"),
+    ),
+    (
+        "vendored extra file",
+        lambda root: (root / VENDORED_SKILL / "EXTRA.md").write_text("extra\n", encoding="utf-8"),
+    ),
+    (
+        "vendored file removed",
+        lambda root: (root / VENDORED_SKILL / "HUNTING.md").unlink(),
+    ),
+    (
+        "vendored symlink inside dest",
+        lambda root: replace_with_symlink(root / VENDORED_SKILL / "ATTACK-CLASSES.md", "/etc/hosts"),
+    ),
+    (
+        "claude skill entry flattened into a directory",
+        flatten_claude_skill_entry,
+    ),
+    (
+        "claude skill entry retargeted",
+        lambda root: replace_with_symlink(root / CLAUDE_SKILL_ENTRY, "../../docs"),
+    ),
+    (
+        "vendored manifest hash corrupted",
+        lambda root: mutate_vendored_manifest(root, corrupt_first_hash),
+    ),
+    (
+        "vendored manifest commit malformed",
+        lambda root: mutate_vendored_manifest(root, lambda skill: skill.update(commit="main")),
+    ),
+    (
+        "vendored manifest path traversal",
+        lambda root: mutate_vendored_manifest(
+            root, lambda skill: skill["files"].update({"../README.md": "0" * 64})
+        ),
+    ),
+    (
+        "vendored manifest required",
+        lambda root: (root / VENDORED_MANIFEST).unlink(),
+    ),
 ]
 
 
@@ -549,6 +622,10 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "local-only Claude helper is allowed",
         lambda root: write_claude_agent(root, "lister", "Read, Glob"),
+    ),
+    (
+        "OS junk files inside the vendored skill are ignored",
+        lambda root: (root / VENDORED_SKILL / ".DS_Store").write_bytes(b"\x00junk"),
     ),
 ]
 
