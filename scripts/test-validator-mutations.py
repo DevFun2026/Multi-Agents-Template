@@ -153,6 +153,23 @@ def plant_junk_dir_payload(root: Path) -> None:
     (junk / "payload.md").write_text("payload\n", encoding="utf-8")
 
 
+PROJECT_SKILL = ".agents/skills/handoff"
+PROJECT_MANIFEST = "scripts/project-skills.json"
+
+
+def drop_project_skill(root: Path, name: str) -> None:
+    path = root / PROJECT_MANIFEST
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["skills"] = [s for s in manifest["skills"] if s["name"] != name]
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def symlink_project_skill_dir(root: Path) -> None:
+    skill = root / PROJECT_SKILL
+    skill.rename(root / "outside-handoff")
+    skill.symlink_to("../../outside-handoff")
+
+
 def corrupt_first_hash(skill: dict) -> None:
     first = sorted(skill["files"])[0]
     skill["files"][first] = "0" * 64
@@ -642,6 +659,48 @@ config_file = "agents/docs.toml"
         "undeclared symlink in a skill root",
         lambda root: (root / ".claude/skills/other").symlink_to("/etc"),
     ),
+    (
+        "project skill missing disable-model-invocation",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/SKILL.md", lambda s: s.replace("disable-model-invocation: true\n", "")
+        ),
+    ),
+    (
+        "project skill invocation flag is a string",
+        lambda root: mutate_text(
+            root,
+            f"{PROJECT_SKILL}/SKILL.md",
+            lambda s: s.replace("disable-model-invocation: true", 'disable-model-invocation: "true"'),
+        ),
+    ),
+    (
+        "project skill implicit invocation allowed",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/agents/openai.yaml", lambda s: s.replace("false", "true")
+        ),
+    ),
+    (
+        "project skill openai.yaml missing",
+        lambda root: (root / PROJECT_SKILL / "agents/openai.yaml").unlink(),
+    ),
+    (
+        "project skill name mismatch",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/SKILL.md", lambda s: s.replace("name: handoff", "name: hand-off")
+        ),
+    ),
+    (
+        "project skill entry retargeted",
+        lambda root: replace_with_symlink(root / ".claude/skills/handoff", "../../.agents/skills/zoom-out"),
+    ),
+    (
+        "project skill dir is a symlink",
+        symlink_project_skill_dir,
+    ),
+    (
+        "undeclared project skill symlink",
+        lambda root: drop_project_skill(root, "explain"),
+    ),
 ]
 
 # Vendored-skill cases must fail for their own rule, not an incidental error.
@@ -664,6 +723,14 @@ expected_messages: dict[str, str] = {
     "vendored manifest entry_points required": "'entry_points' must be a non-empty object",
     "vendored manifest root must be an object": "JSON root must be an object",
     "undeclared symlink in a skill root": "undeclared symlink",
+    "project skill missing disable-model-invocation": "disable-model-invocation: true",
+    "project skill invocation flag is a string": "disable-model-invocation: true",
+    "project skill implicit invocation allowed": "allow_implicit_invocation: false",
+    "project skill openai.yaml missing": "agents/openai.yaml",
+    "project skill name mismatch": "name must match",
+    "project skill entry retargeted": "must point to",
+    "project skill dir is a symlink": "must be a real directory",
+    "undeclared project skill symlink": "undeclared symlink",
 }
 assert set(expected_messages) <= {name for name, _ in cases}, "expected_messages names an unknown case"
 

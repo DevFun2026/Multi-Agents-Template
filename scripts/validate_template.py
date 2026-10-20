@@ -63,6 +63,7 @@ REQUIRED = [
     "docs/SESSION-EXAMPLES.md",
     "docs/UPSTREAMS.md",
     "scripts/vendored-skills.json",
+    "scripts/project-skills.json",
     "docs/templates/spec.md",
     "docs/templates/design.md",
     "docs/templates/adr.md",
@@ -853,6 +854,7 @@ else:
 # Vendored skills must stay byte-identical to the pinned upstream commit
 # (ADR 0003). Their bytes are upstream's, so they are not in the newline check.
 VENDORED_MANIFEST = "scripts/vendored-skills.json"
+PROJECT_SKILLS_MANIFEST = "scripts/project-skills.json"
 # OS junk that .gitignore already keeps out of commits; skipped only as regular files.
 VENDORED_IGNORED_NAMES = {".DS_Store", "Thumbs.db"}
 VENDORED_SKILL_ROOTS = (".agents/skills", ".claude/skills", ".gemini/skills")
@@ -865,14 +867,14 @@ def is_safe_relative(rel: str) -> bool:
     return bool(rel) and not path.is_absolute() and ".." not in path.parts and "\\" not in rel
 
 
-def check_vendored_skills() -> None:
+def check_vendored_skills(extra_declared: set[str]) -> None:
     manifest = parse_json(VENDORED_MANIFEST)
     skills = manifest.get("skills")
     if not isinstance(skills, list) or not skills:
         fail(f"{VENDORED_MANIFEST}: 'skills' must be a non-empty list")
         return
 
-    declared_links: set[str] = set()
+    declared_links: set[str] = set(extra_declared)
     for skill in skills:
         if not isinstance(skill, dict):
             fail(f"{VENDORED_MANIFEST}: each skill entry must be an object")
@@ -963,10 +965,81 @@ def check_vendored_skills() -> None:
         for entry in sorted(skill_root.iterdir()):
             rel = entry.relative_to(ROOT).as_posix()
             if entry.is_symlink() and rel not in declared_links:
-                fail(f"{VENDORED_MANIFEST}: undeclared symlink {rel}")
+                fail(f"undeclared symlink {rel}: declare it in {PROJECT_SKILLS_MANIFEST} or {VENDORED_MANIFEST}")
 
 
-check_vendored_skills()
+
+# Project-authored skills (ADR 0004): explicit-only in every harness that
+# supports it, declared in scripts/project-skills.json, not hash-pinned.
+
+
+def check_project_skills() -> set[str]:
+    declared: set[str] = set()
+    manifest = parse_json(PROJECT_SKILLS_MANIFEST)
+    skills = manifest.get("skills")
+    if not isinstance(skills, list) or not skills:
+        fail(f"{PROJECT_SKILLS_MANIFEST}: 'skills' must be a non-empty list")
+        return declared
+
+    for skill in skills:
+        if not isinstance(skill, dict):
+            fail(f"{PROJECT_SKILLS_MANIFEST}: each skill entry must be an object")
+            continue
+        name = skill.get("name")
+        path_rel = skill.get("path")
+        label = f"{PROJECT_SKILLS_MANIFEST}: {name}"
+        if not isinstance(name, str) or not isinstance(path_rel, str) or not is_safe_relative(path_rel):
+            fail(f"{label}: 'name' and a safe relative 'path' are required")
+            continue
+
+        entry_points = skill.get("entry_points")
+        if not isinstance(entry_points, dict) or not entry_points:
+            fail(f"{label}: 'entry_points' must be a non-empty object")
+            entry_points = {}
+        for link_rel, target in entry_points.items():
+            link = ROOT / link_rel
+            if not is_safe_relative(link_rel) or not isinstance(target, str):
+                fail(f"{label}: invalid entry point {link_rel!r}")
+            elif not link.is_symlink():
+                fail(f"{label}: {link_rel} must be a symlink to {target}")
+            elif os.readlink(link) != target:
+                fail(f"{label}: {link_rel} must point to {target}, not {os.readlink(link)}")
+            else:
+                declared.add(link_rel)
+
+        skill_dir = ROOT / path_rel
+        if skill_dir.is_symlink() or not skill_dir.is_dir():
+            fail(f"{label}: {path_rel} must be a real directory")
+            continue
+        if skill_dir.resolve() != ROOT.resolve() / path_rel:
+            fail(f"{label}: {path_rel} must not be reached through a symlinked parent")
+            continue
+
+        frontmatter = parse_frontmatter(f"{path_rel}/SKILL.md")
+        if frontmatter.get("name") != skill_dir.name:
+            fail(f"{label}: SKILL.md name must match the directory name {skill_dir.name!r}")
+        if not isinstance(frontmatter.get("description"), str) or not frontmatter["description"].strip():
+            fail(f"{label}: SKILL.md needs a non-empty description")
+        if frontmatter.get("disable-model-invocation") is not True:
+            fail(f"{label}: SKILL.md must set disable-model-invocation: true (a YAML boolean)")
+
+        openai_rel = f"{path_rel}/agents/openai.yaml"
+        if not (ROOT / openai_rel).is_file():
+            fail(f"{label}: {openai_rel} is required (Codex explicit-only policy)")
+            continue
+        try:
+            openai = yaml.load(read_text(openai_rel), Loader=UniqueKeyLoader) or {}
+        except yaml.YAMLError as exc:
+            fail(f"{openai_rel}: invalid YAML: {exc}")
+            continue
+        policy = openai.get("policy") if isinstance(openai, dict) else None
+        if not isinstance(policy, dict) or policy.get("allow_implicit_invocation") is not False:
+            fail(f"{openai_rel}: policy must set allow_implicit_invocation: false")
+
+    return declared
+
+
+check_vendored_skills(check_project_skills())
 
 
 template_text_files: set[Path] = {

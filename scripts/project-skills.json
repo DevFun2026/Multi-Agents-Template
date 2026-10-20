@@ -1,0 +1,25 @@
+{
+  "skills": [
+    {
+      "name": "handoff",
+      "path": ".agents/skills/handoff",
+      "entry_points": {
+        ".claude/skills/handoff": "../../.agents/skills/handoff"
+      }
+    },
+    {
+      "name": "zoom-out",
+      "path": ".agents/skills/zoom-out",
+      "entry_points": {
+        ".claude/skills/zoom-out": "../../.agents/skills/zoom-out"
+      }
+    },
+    {
+      "name": "explain",
+      "path": ".agents/skills/explain",
+      "entry_points": {
+        ".claude/skills/explain": "../../.agents/skills/explain"
+      }
+    }
+  ]
+}
