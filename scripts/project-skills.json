@@ -20,6 +20,13 @@
       "entry_points": {
         ".claude/skills/explain": "../../.agents/skills/explain"
       }
+    },
+    {
+      "name": "cross-review",
+      "path": ".agents/skills/cross-review",
+      "entry_points": {
+        ".claude/skills/cross-review": "../../.agents/skills/cross-review"
+      }
     }
   ]
 }
