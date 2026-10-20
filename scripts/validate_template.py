@@ -69,7 +69,6 @@ REQUIRED = [
     "docs/templates/adr.md",
     "docs/templates/plan.md",
     "docs/templates/context.md",
-    "CONTEXT.md",
     "scripts/bootstrap.sh",
     "scripts/verify-template.sh",
     "scripts/test-bootstrap.py",
@@ -1087,17 +1086,44 @@ for root_rel in VENDORED_SKILL_ROOTS:
             fail(f"undeclared skill directory {rel}: declare it in {PROJECT_SKILLS_MANIFEST} or {VENDORED_MANIFEST}")
 
 
-# CONTEXT.md is the domain glossary (ADR 0005).
-for rel in ("CONTEXT.md", "docs/templates/context.md"):
-    if (ROOT / rel).is_file() and not re.search(r"^## Language\s*$", read_text(rel), re.MULTILINE):
+# CONTEXT.md is the domain glossary (ADR 0005): a root CONTEXT.md, or a root
+# CONTEXT-MAP.md that links one CONTEXT.md per bounded context.
+CONTEXT_MAP_LINK = re.compile(r"\]\(([^)\s]*CONTEXT\.md)\)")
+
+
+def require_language_section(rel: str) -> None:
+    if not re.search(r"^## Language\s*$", read_text(rel), re.MULTILINE):
         fail(f"{rel}: needs a '## Language' section")
+
+
+context_files: list[str] = ["docs/templates/context.md"] if (ROOT / "docs/templates/context.md").is_file() else []
+if (ROOT / "CONTEXT-MAP.md").is_file():
+    links = CONTEXT_MAP_LINK.findall(read_text("CONTEXT-MAP.md"))
+    if not links:
+        fail("CONTEXT-MAP.md: must link at least one CONTEXT.md")
+    for link in links:
+        rel = os.path.normpath(link.removeprefix("./"))
+        path = ROOT / rel
+        if not is_safe_relative(rel) or path.is_symlink() or not path.is_file() or ROOT.resolve() not in path.resolve().parents:
+            fail(f"CONTEXT-MAP.md: linked context file is missing or unsafe: {link}")
+        else:
+            context_files.append(Path(rel).as_posix())
+elif (ROOT / "CONTEXT.md").is_file():
+    context_files.append("CONTEXT.md")
+else:
+    fail("CONTEXT.md or CONTEXT-MAP.md is required at the repository root")
+for rel in context_files:
+    require_language_section(rel)
 
 
 # Handoffs and cross-review reports are committed session artifacts
 # (ADR 0006): safe file names and no obvious secrets. The secret patterns are
 # a heuristic backstop, not a guarantee; the skills must redact first.
-SESSION_ARTIFACT_DIRS = ("docs/handoffs", "docs/reviews")
-SESSION_ARTIFACT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-\d{6}-[a-z0-9-]+\.md$")
+SESSION_ARTIFACT_NAMES = {
+    "docs/handoffs": re.compile(r"^\d{4}-\d{2}-\d{2}-\d{6}-[a-z0-9-]+\.md$"),
+    "docs/reviews": re.compile(r"^\d{4}-\d{2}-\d{2}-\d{6}-[a-z0-9-]+-cross-review\.md$"),
+}
+SESSION_ARTIFACT_DIRS = tuple(SESSION_ARTIFACT_NAMES)
 SECRET_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
@@ -1122,8 +1148,8 @@ for dir_rel in SESSION_ARTIFACT_DIRS:
             continue
         if path.name == ".gitkeep":
             continue
-        if path.parent != session_dir or not SESSION_ARTIFACT_NAME.match(path.name):
-            fail(f"{rel}: file name must match YYYY-MM-DD-HHMMSS-<slug>.md directly under {dir_rel}/")
+        if path.parent != session_dir or not SESSION_ARTIFACT_NAMES[dir_rel].match(path.name):
+            fail(f"{rel}: file name must match {SESSION_ARTIFACT_NAMES[dir_rel].pattern} directly under {dir_rel}/")
         text = path.read_text(encoding="utf-8", errors="replace")
         for lineno, line in enumerate(text.splitlines(), start=1):
             if any(pattern.search(line) for pattern in SECRET_PATTERNS):
