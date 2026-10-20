@@ -1,0 +1,2 @@
+# Vendored skills must stay byte-identical to upstream (see scripts/vendored-skills.json).
+.agents/skills/** -text
