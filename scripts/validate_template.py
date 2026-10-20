@@ -1089,6 +1089,7 @@ for root_rel in VENDORED_SKILL_ROOTS:
 # CONTEXT.md is the domain glossary (ADR 0005): a root CONTEXT.md, or a root
 # CONTEXT-MAP.md that links one CONTEXT.md per bounded context.
 CONTEXT_MAP_LINK = re.compile(r"\]\(([^)\s]*CONTEXT\.md)\)")
+CONTEXT_MAP_REF_LINK = re.compile(r"^\s*\[[^\]]+\]:\s*<?([^\s>]*CONTEXT\.md)>?", re.MULTILINE)
 
 
 def require_language_section(rel: str) -> None:
@@ -1098,7 +1099,9 @@ def require_language_section(rel: str) -> None:
 
 context_files: list[str] = ["docs/templates/context.md"] if (ROOT / "docs/templates/context.md").is_file() else []
 if (ROOT / "CONTEXT-MAP.md").is_file():
-    links = CONTEXT_MAP_LINK.findall(read_text("CONTEXT-MAP.md"))
+    map_text = read_text("CONTEXT-MAP.md")
+    # Inline links and reference definitions, de-duplicated in order.
+    links = list(dict.fromkeys(CONTEXT_MAP_LINK.findall(map_text) + CONTEXT_MAP_REF_LINK.findall(map_text)))
     if not links:
         fail("CONTEXT-MAP.md: must link at least one CONTEXT.md")
     for link in links:
