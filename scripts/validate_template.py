@@ -1146,7 +1146,7 @@ for dir_rel in SESSION_ARTIFACT_DIRS:
             if path.is_symlink():
                 fail(f"{rel}: session artifacts must not be symlinks")
             continue
-        if path.name == ".gitkeep":
+        if path.name == ".gitkeep" or path.name in VENDORED_IGNORED_NAMES:
             continue
         if path.parent != session_dir or not SESSION_ARTIFACT_NAMES[dir_rel].match(path.name):
             fail(f"{rel}: file name must match {SESSION_ARTIFACT_NAMES[dir_rel].pattern} directly under {dir_rel}/")
