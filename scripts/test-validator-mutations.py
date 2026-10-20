@@ -153,6 +153,41 @@ def plant_junk_dir_payload(root: Path) -> None:
     (junk / "payload.md").write_text("payload\n", encoding="utf-8")
 
 
+PROJECT_SKILL = ".agents/skills/handoff"
+PROJECT_MANIFEST = "scripts/project-skills.json"
+
+
+def drop_project_skill(root: Path, name: str) -> None:
+    path = root / PROJECT_MANIFEST
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["skills"] = [s for s in manifest["skills"] if s["name"] != name]
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
+def symlink_project_skill_dir(root: Path) -> None:
+    skill = root / PROJECT_SKILL
+    skill.rename(root / "outside-handoff")
+    skill.symlink_to("../../outside-handoff")
+
+
+def write_session_artifact(root: Path, rel: str, text: str) -> None:
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+# Fake secrets are assembled at run time so this file never holds a token-shaped literal.
+FAKE_SECRETS = {
+    "GitHub token": "gh" + "p_" + "A" * 36,
+    "Slack token": "xo" + "xb-" + "1" * 12,
+    "OpenAI-style key": "s" + "k-" + "B" * 24,
+    "Anthropic-style key": "s" + "k-ant-" + "C" * 12,
+    "Google API key": "AI" + "za" + "D" * 35,
+    "JWT": "ey" + "J" + "E" * 12 + ".ey" + "J" + "F" * 12 + ".sig",
+    "Bearer token": "Bear" + "er " + "G" * 24,
+}
+
+
 def corrupt_first_hash(skill: dict) -> None:
     first = sorted(skill["files"])[0]
     skill["files"][first] = "0" * 64
@@ -642,6 +677,123 @@ config_file = "agents/docs.toml"
         "undeclared symlink in a skill root",
         lambda root: (root / ".claude/skills/other").symlink_to("/etc"),
     ),
+    (
+        "project skill missing disable-model-invocation",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/SKILL.md", lambda s: s.replace("disable-model-invocation: true\n", "")
+        ),
+    ),
+    (
+        "project skill invocation flag is a string",
+        lambda root: mutate_text(
+            root,
+            f"{PROJECT_SKILL}/SKILL.md",
+            lambda s: s.replace("disable-model-invocation: true", 'disable-model-invocation: "true"'),
+        ),
+    ),
+    (
+        "project skill implicit invocation allowed",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/agents/openai.yaml", lambda s: s.replace("false", "true")
+        ),
+    ),
+    (
+        "project skill openai.yaml missing",
+        lambda root: (root / PROJECT_SKILL / "agents/openai.yaml").unlink(),
+    ),
+    (
+        "project skill name mismatch",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/SKILL.md", lambda s: s.replace("name: handoff", "name: hand-off")
+        ),
+    ),
+    (
+        "project skill entry retargeted",
+        lambda root: replace_with_symlink(root / ".claude/skills/handoff", "../../.agents/skills/zoom-out"),
+    ),
+    (
+        "project skill dir is a symlink",
+        symlink_project_skill_dir,
+    ),
+    (
+        "undeclared project skill symlink",
+        lambda root: drop_project_skill(root, "explain"),
+    ),
+    (
+        "CONTEXT.md required",
+        lambda root: (root / "CONTEXT.md").unlink(),
+    ),
+    (
+        "CONTEXT.md needs Language section",
+        lambda root: mutate_text(root, "CONTEXT.md", lambda s: s.replace("## Language", "## Terms")),
+    ),
+    (
+        "context template required",
+        lambda root: (root / "docs/templates/context.md").unlink(),
+    ),
+    (
+        "handoff leaks AWS key",
+        lambda root: write_session_artifact(
+            root, "docs/handoffs/2026-10-20-120000-x.md", "# Handoff\n\nkey AKIAABCDEFGHIJKLMNOP\n"
+        ),
+    ),
+    (
+        "review leaks private key",
+        lambda root: write_session_artifact(
+            root,
+            "docs/reviews/2026-10-20-120000-x-cross-review.md",
+            "# Review\n\n-----BEGIN RSA PRIVATE KEY-----\n",
+        ),
+    ),
+    (
+        "handoff file name unsafe",
+        lambda root: write_session_artifact(root, "docs/handoffs/notes.md", "# Notes\n"),
+    ),
+    (
+        "handoff slug uppercase",
+        lambda root: write_session_artifact(root, "docs/handoffs/2026-10-20-120000-Plan.md", "# H\n"),
+    ),
+    (
+        "handoff nested file",
+        lambda root: write_session_artifact(root, "docs/handoffs/sub/2026-10-20-120000-x.md", "# H\n"),
+    ),
+    *[
+        (
+            f"handoff leaks {kind}",
+            lambda root, token=token: write_session_artifact(
+                root, "docs/handoffs/2026-10-20-120000-x.md", f"# Handoff\n\nvalue {token}\n"
+            ),
+        )
+        for kind, token in FAKE_SECRETS.items()
+    ],
+    (
+        "undeclared skill directory",
+        lambda root: write_session_artifact(
+            root, ".agents/skills/foo/SKILL.md", "---\nname: foo\ndescription: Foo.\n---\nBody\n"
+        ),
+    ),
+    (
+        "project skill invocation flag is yes",
+        lambda root: mutate_text(
+            root,
+            f"{PROJECT_SKILL}/SKILL.md",
+            lambda s: s.replace("disable-model-invocation: true", "disable-model-invocation: yes"),
+        ),
+    ),
+    (
+        "project skill missing description",
+        lambda root: mutate_text(
+            root, f"{PROJECT_SKILL}/SKILL.md", lambda s: s.replace("description:", "summary:", 1)
+        ),
+    ),
+    (
+        "project skill SKILL.md missing",
+        lambda root: (root / PROJECT_SKILL / "SKILL.md").unlink(),
+    ),
+    (
+        "project skill SKILL.md is a symlink",
+        lambda root: replace_with_symlink(root / PROJECT_SKILL / "SKILL.md", "../zoom-out/SKILL.md"),
+    ),
 ]
 
 # Vendored-skill cases must fail for their own rule, not an incidental error.
@@ -664,6 +816,28 @@ expected_messages: dict[str, str] = {
     "vendored manifest entry_points required": "'entry_points' must be a non-empty object",
     "vendored manifest root must be an object": "JSON root must be an object",
     "undeclared symlink in a skill root": "undeclared symlink",
+    "project skill missing disable-model-invocation": "disable-model-invocation: true",
+    "project skill invocation flag is a string": "disable-model-invocation: true",
+    "project skill implicit invocation allowed": "allow_implicit_invocation: false",
+    "project skill openai.yaml missing": "agents/openai.yaml",
+    "project skill name mismatch": "name must match",
+    "project skill entry retargeted": "must point to",
+    "project skill dir is a symlink": "must be a real directory",
+    "undeclared project skill symlink": "undeclared symlink",
+    "CONTEXT.md required": "missing required file: CONTEXT.md",
+    "CONTEXT.md needs Language section": "## Language",
+    "context template required": "missing required file: docs/templates/context.md",
+    "handoff leaks AWS key": "possible secret",
+    "review leaks private key": "possible secret",
+    "handoff file name unsafe": "file name must match",
+    "handoff slug uppercase": "file name must match",
+    "handoff nested file": "file name must match",
+    **{f"handoff leaks {kind}": "possible secret" for kind in FAKE_SECRETS},
+    "undeclared skill directory": "undeclared skill directory",
+    "project skill invocation flag is yes": "the literal YAML boolean",
+    "project skill missing description": "non-empty description",
+    "project skill SKILL.md missing": "SKILL.md is required",
+    "project skill SKILL.md is a symlink": "must not be a symlink",
 }
 assert set(expected_messages) <= {name for name, _ in cases}, "expected_messages names an unknown case"
 
@@ -702,6 +876,20 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "OS junk files inside the vendored skill are ignored",
         lambda root: (root / VENDORED_SKILL / ".DS_Store").write_bytes(b"\x00junk"),
+    ),
+    (
+        "handoff with short sk- text and a gate section reference",
+        lambda root: write_session_artifact(
+            root,
+            "docs/handoffs/2026-10-20-120000-session.md",
+            "# Handoff\n\nUses sk-learn; see the planning gate (section 3) of an older policy.\n",
+        ),
+    ),
+    (
+        "well-named cross-review report",
+        lambda root: write_session_artifact(
+            root, "docs/reviews/2026-10-20-120000-plan-cross-review.md", "# Cross-review: plan\n"
+        ),
     ),
 ]
 

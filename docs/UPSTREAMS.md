@@ -147,6 +147,16 @@ Never edit vendored files in place. To update a vendored skill:
 5. run `bash scripts/verify-template.sh`;
 6. get a `security-reviewer` pass on the change.
 
+## Project skills
+
+`handoff`, `zoom-out`, `explain` and `cross-review` in `.agents/skills/` are written for this template (ADR 0004) and declared in `scripts/project-skills.json`. They are not pinned and are edited like any other template file.
+
+Credits for the ideas; the text in this repository is original:
+
+- the skills were adapted from the user's aces-service project;
+- the handoff idea also appears in [mattpocock/skills](https://github.com/mattpocock/skills) (MIT);
+- the `CONTEXT.md` glossary format (ADR 0005) follows the aces-service `CONTEXT-FORMAT.md`.
+
 ## Bootstrap safety model
 
 ```bash
