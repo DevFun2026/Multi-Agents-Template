@@ -786,6 +786,17 @@ config_file = "agents/docs.toml"
         ),
     ),
     (
+        "context map reference link to a missing CONTEXT.md",
+        lambda root: (
+            use_context_map(root),
+            write_session_artifact(
+                root,
+                "CONTEXT-MAP.md",
+                "# Map\n\n- [Ctx](./docs/ctx/CONTEXT.md)\n- [Other][other]\n\n[other]: ./docs/other/CONTEXT.md\n",
+            ),
+        ),
+    ),
+    (
         "review name without cross-review suffix",
         lambda root: write_session_artifact(root, "docs/reviews/2026-10-20-120000-notes.md", "# R\n"),
     ),
@@ -871,6 +882,7 @@ expected_messages: dict[str, str] = {
     "context map with no CONTEXT.md link": "must link at least one CONTEXT.md",
     "context map link escapes the repository": "missing or unsafe",
     "context map links a symlinked CONTEXT.md": "missing or unsafe",
+    "context map reference link to a missing CONTEXT.md": "missing or unsafe",
     "CONTEXT.md needs Language section": "## Language",
     "context template required": "missing required file: docs/templates/context.md",
     "handoff leaks AWS key": "possible secret",
@@ -934,6 +946,13 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
     (
         "OS junk file in docs/reviews is ignored",
         lambda root: write_session_artifact(root, "docs/reviews/.DS_Store", "junk"),
+    ),
+    (
+        "CONTEXT-MAP.md with only a reference-style link",
+        lambda root: (
+            use_context_map(root),
+            write_session_artifact(root, "CONTEXT-MAP.md", "# Map\n\n- [Ctx][ctx]\n\n[ctx]: ./docs/ctx/CONTEXT.md\n"),
+        ),
     ),
     (
         "CONTEXT-MAP.md-only repository",
