@@ -20,7 +20,12 @@ A different model reviews the planning artifacts before the user approves them. 
 
 ## 2. Collect the artifacts
 
-- **Plan:** the second argument if given; otherwise the newest file in `docs/plans/` by its date prefix.
+- **Plan:**
+  1. If the user gave a second argument, use that plan.
+  2. Otherwise find the newest date prefix among `docs/plans/*.md`. If exactly one plan has it, use that plan.
+  3. If several plans share the newest date, do not guess. List them and ask the user which one to review. Stop until they answer.
+     - For each plan, show its path, its `Status:` line, and a mark when `git status --porcelain -- <path>` shows uncommitted changes.
+     - Order: plans with uncommitted changes first, then the rest by `git log -1 --format=%ct -- <path>`, newest first. The order only puts the likely plan first; the user decides.
 - **From the plan's header links:** the spec, the design and every ADR. The links are relative to `docs/plans/` (for example `../specs/x.md`), so resolve each one to a repository-relative path (`docs/specs/x.md`).
 - **Also:** `CONTEXT.md`, or `CONTEXT-MAP.md` plus the `CONTEXT.md` files it lists, when present.
 - **Do not collect `AGENTS.md`.** Codex and `agy` load it as their own instructions. The prompt states the planning-gate rules instead (step 3).
