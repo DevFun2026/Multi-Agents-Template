@@ -79,12 +79,14 @@ Take this path only when the user explicitly says to run the CLI, for example "r
 1. Create a temporary copy that holds only the accepted artifacts from step 2, and write the prompt to a file. Never paste artifact text or file names into the command line.
 
    ```bash
-   tmp_dir="$(mktemp -d)"; trap 'rm -rf "$tmp_dir"' EXIT
+   tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/cross-review.XXXXXX")"; echo "$tmp_dir"   # note this absolute path
    git -C "$tmp_dir" init -q   # some reviewer harnesses expect a repository
    # for each accepted path (already validated in step 2):
    #   mkdir -p "$tmp_dir/$(dirname -- "$path")" && cp -P -- "$path" "$tmp_dir/$path"
    prompt_file="$tmp_dir/.review-prompt.txt"   # write the step 3 prompt here
    ```
+
+   Do not add a `trap` or any `rm` to this script. Harness safety checks block `rm -rf` on a shell variable inside a script, and cleanup has its own step (7).
 
 2. Run the reviewer against the copy, never against the repository:
 
@@ -101,8 +103,15 @@ Take this path only when the user explicitly says to run the CLI, for example "r
    - Remove anything that is not a review.
    - Redact any secret or personal data.
    - Check that it follows the contract. If it does not, re-run once or fall back to Path A.
-5. Write the report (step 6). The `trap` deletes `$tmp_dir` on success and on failure.
+5. Write the report (step 6).
 6. If the CLI is missing, fails, or returns nothing useful, say so plainly. Write no report, and fall back to Path A.
+7. Clean up, on success and on failure, as a separate command with the literal absolute path noted in sub-step 1:
+
+   ```bash
+   rm -rf -- '/absolute/path/printed/by/mktemp/cross-review.XXXXXX'
+   ```
+
+   Run it only if that path is inside the system temp directory (`${TMPDIR:-/tmp}`) and its last component starts with `cross-review.`. If the harness blocks or asks and nobody approves, do not retry another way. Tell the user the path so they can delete it.
 
 Limits to tell the user the first time they choose Path B:
 
