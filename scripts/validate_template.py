@@ -1089,9 +1089,14 @@ for root_rel in VENDORED_SKILL_ROOTS:
 # CONTEXT.md is the domain glossary (ADR 0005): a root CONTEXT.md, or a root
 # CONTEXT-MAP.md that links one CONTEXT.md per bounded context.
 # Only links whose last path segment is exactly CONTEXT.md count; a #fragment is dropped.
-CONTEXT_MAP_LINK = re.compile(r"\]\(((?:[^)\s#]*/)?CONTEXT\.md)(?:#[^)\s]*)?\)")
+# An optional Markdown link title: "...", '...' or (...).
+LINK_TITLE = r"""(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?"""
+CONTEXT_MAP_LINK = re.compile(
+    r"\]\(\s*<?((?:[^)\s#>]*/)?CONTEXT\.md)(?:#[^)\s>]*)?>?" + LINK_TITLE + r"\s*\)"
+)
 CONTEXT_MAP_REF_LINK = re.compile(
-    r"^\s*\[[^\]]+\]:\s*<?((?:[^\s>#]*/)?CONTEXT\.md)(?:#[^\s>]*)?>?\s*$", re.MULTILINE
+    r"^\s*\[[^\]]+\]:\s*<?((?:[^\s>#]*/)?CONTEXT\.md)(?:#[^\s>]*)?>?" + LINK_TITLE + r"\s*$",
+    re.MULTILINE,
 )
 
 
