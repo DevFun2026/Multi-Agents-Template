@@ -1088,8 +1088,11 @@ for root_rel in VENDORED_SKILL_ROOTS:
 
 # CONTEXT.md is the domain glossary (ADR 0005): a root CONTEXT.md, or a root
 # CONTEXT-MAP.md that links one CONTEXT.md per bounded context.
-CONTEXT_MAP_LINK = re.compile(r"\]\(([^)\s]*CONTEXT\.md)\)")
-CONTEXT_MAP_REF_LINK = re.compile(r"^\s*\[[^\]]+\]:\s*<?([^\s>]*CONTEXT\.md)>?", re.MULTILINE)
+# Only links whose last path segment is exactly CONTEXT.md count; a #fragment is dropped.
+CONTEXT_MAP_LINK = re.compile(r"\]\(((?:[^)\s#]*/)?CONTEXT\.md)(?:#[^)\s]*)?\)")
+CONTEXT_MAP_REF_LINK = re.compile(
+    r"^\s*\[[^\]]+\]:\s*<?((?:[^\s>#]*/)?CONTEXT\.md)(?:#[^\s>]*)?>?\s*$", re.MULTILINE
+)
 
 
 def require_language_section(rel: str) -> None:

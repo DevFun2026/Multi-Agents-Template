@@ -797,6 +797,20 @@ config_file = "agents/docs.toml"
         ),
     ),
     (
+        "context map links only CONTEXT.md.bak",
+        lambda root: (
+            use_context_map(root),
+            write_session_artifact(root, "CONTEXT-MAP.md", "# Map\n\n[c]: ./docs/ctx/CONTEXT.md.bak\n"),
+        ),
+    ),
+    (
+        "context map links only NOTCONTEXT.md",
+        lambda root: (
+            use_context_map(root),
+            write_session_artifact(root, "CONTEXT-MAP.md", "# Map\n\n- [N](./docs/ctx/NOTCONTEXT.md)\n"),
+        ),
+    ),
+    (
         "review name without cross-review suffix",
         lambda root: write_session_artifact(root, "docs/reviews/2026-10-20-120000-notes.md", "# R\n"),
     ),
@@ -883,6 +897,8 @@ expected_messages: dict[str, str] = {
     "context map link escapes the repository": "missing or unsafe",
     "context map links a symlinked CONTEXT.md": "missing or unsafe",
     "context map reference link to a missing CONTEXT.md": "missing or unsafe",
+    "context map links only CONTEXT.md.bak": "must link at least one CONTEXT.md",
+    "context map links only NOTCONTEXT.md": "must link at least one CONTEXT.md",
     "CONTEXT.md needs Language section": "## Language",
     "context template required": "missing required file: docs/templates/context.md",
     "handoff leaks AWS key": "possible secret",
@@ -952,6 +968,13 @@ accepted_cases: list[tuple[str, Callable[[Path], None]]] = [
         lambda root: (
             use_context_map(root),
             write_session_artifact(root, "CONTEXT-MAP.md", "# Map\n\n- [Ctx][ctx]\n\n[ctx]: ./docs/ctx/CONTEXT.md\n"),
+        ),
+    ),
+    (
+        "context map reference link with fragment",
+        lambda root: (
+            use_context_map(root),
+            write_session_artifact(root, "CONTEXT-MAP.md", "# Map\n\n- [Ctx][c]\n\n[c]: ./docs/ctx/CONTEXT.md#language\n"),
         ),
     ),
     (

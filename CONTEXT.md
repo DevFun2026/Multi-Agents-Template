@@ -78,6 +78,14 @@ _Avoid_: summary, notes
 A review of one **PHASE 1 artifact set** by a model in a different **Harness**, saved in `docs/reviews/`.
 _Avoid_: second opinion, peer review
 
+**Path B**:
+The **Cross-review** mode that runs the reviewing **Harness**'s CLI on a **Temporary copy**. It happens only when the user explicitly asks for it. Path A, the default, only prints the prompt.
+_Avoid_: CLI mode, auto-review
+
+**Temporary copy**:
+A `cross-review.*` directory under the system temp directory. It holds only the reviewed artifacts, the prompt and an empty git repository, and is deleted by a separate exact-path command after **Path B**.
+_Avoid_: sandbox (it is not one), scratch repo
+
 ## Flagged ambiguities
 
 - "agent" was used for the **Harness**, the **Controller** and a **Worker**. Resolution: say which one; use "agent" alone only for the general idea.

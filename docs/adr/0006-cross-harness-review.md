@@ -22,6 +22,12 @@ A second model reviewing the PHASE 1 artifacts before approval catches blind spo
    - `agy`: `-p --mode plan`, with the copy as its cwd.
 
    The skill then writes the report itself and deletes the copy.
+
+   Update (2026-10-21, after acceptance): deletion is a separate, best-effort step.
+   - It runs `rm -rf -- '<path>'` only on the exact canonical path that `mktemp` printed in that run.
+   - If a harness safety check blocks the command, the skill reports the path to the user instead.
+   - The decision itself (a temporary copy, an explicit request, a read-only reviewer) is unchanged.
+   - Details are in `.agents/skills/cross-review/SKILL.md`, step 5.
 4. Reports go to `docs/reviews/` and are committed. The skill never edits the reviewed artifacts. Writing to `docs/reviews/` and `docs/handoffs/` is permitted at any time and is outside the planning gate.
 5. Cross-review is optional. It is not part of the approval stop.
 
